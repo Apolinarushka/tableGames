@@ -24,10 +24,18 @@ npm start
 Из папки `E:\tableGames` выполните:
 
 ```powershell
-docker compose up -d --build
+docker compose up -d --build --watch
 ```
 
-Игра откроется по адресу `http://localhost:4173`. Посмотреть состояние:
+Игра откроется по адресу `http://localhost:4173`.
+
+Это режим разработки:
+
+- изменения HTML, CSS, JavaScript и ресурсов сразу попадают в контейнер;
+- открытая страница автоматически перезагружается после сохранения файла;
+- при изменении `Dockerfile` или `package.json` Docker пересобирает контейнер.
+
+Посмотреть состояние:
 
 ```powershell
 docker compose ps

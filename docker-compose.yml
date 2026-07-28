@@ -5,7 +5,17 @@ services:
     image: table-games:local
     container_name: table-games
     environment:
+      NODE_ENV: "development"
       PORT: "4173"
+    command: ["node", "dev-server.js"]
+    volumes:
+      - .:/app
     ports:
       - "4173:4173"
     restart: unless-stopped
+    develop:
+      watch:
+        - action: rebuild
+          path: Dockerfile
+        - action: rebuild
+          path: package.json

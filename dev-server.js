@@ -1,0 +1,131 @@
+const http = require("http");
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
+
+const root = __dirname;
+const port = Number(process.env.PORT || 4173);
+const clients = new Set();
+const ignoredDirectories = new Set([".git", ".idea", "node_modules"]);
+const watchedExtensions = new Set([
+  ".html", ".css", ".js", ".json",
+  ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".ico",
+  ".wav", ".mp3", ".ogg"
+]);
+const types = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".wav": "audio/wav",
+  ".mp3": "audio/mpeg",
+  ".ogg": "audio/ogg"
+};
+
+const reloadClient = `<script>
+(() => {
+  const events = new EventSource("/__dev_reload");
+  events.addEventListener("reload", () => location.reload());
+})();
+</script>`;
+
+function projectSignature(directory = root, entries = []) {
+  for (const item of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (item.isDirectory() && ignoredDirectories.has(item.name)) continue;
+    const absolute = path.join(directory, item.name);
+    if (item.isDirectory()) {
+      projectSignature(absolute, entries);
+      continue;
+    }
+    if (!watchedExtensions.has(path.extname(item.name).toLowerCase())) continue;
+    const stats = fs.statSync(absolute);
+    entries.push(`${path.relative(root, absolute)}:${stats.size}:${stats.mtimeMs}`);
+  }
+  return entries.sort().join("|");
+}
+
+function broadcastReload() {
+  const message = `event: reload\ndata: ${Date.now()}\n\n`;
+  for (const response of clients) response.write(message);
+}
+
+let signature = projectSignature();
+setInterval(() => {
+  try {
+    const nextSignature = projectSignature();
+    if (nextSignature !== signature) {
+      signature = nextSignature;
+      broadcastReload();
+      console.log("Изменения обнаружены — страница обновлена.");
+    }
+  } catch (error) {
+    console.error("Не удалось проверить изменения:", error.message);
+  }
+}, 450).unref();
+
+const server = http.createServer((request, response) => {
+  const requestPath = decodeURIComponent(request.url.split("?")[0]);
+
+  if (requestPath === "/__dev_reload") {
+    response.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive"
+    });
+    response.write(": connected\n\n");
+    clients.add(response);
+    request.on("close", () => clients.delete(response));
+    return;
+  }
+
+  const relative = requestPath === "/" ? "index.html" : requestPath.replace(/^\/+/, "");
+  const file = path.resolve(root, relative);
+  if (file !== root && !file.startsWith(`${root}${path.sep}`)) {
+    response.writeHead(403);
+    response.end("Forbidden");
+    return;
+  }
+
+  fs.readFile(file, (error, data) => {
+    if (error) {
+      response.writeHead(404);
+      response.end("Not found");
+      return;
+    }
+
+    const extension = path.extname(file).toLowerCase();
+    if (extension === ".html") {
+      const html = data.toString("utf8");
+      data = Buffer.from(
+        html.includes("</body>")
+          ? html.replace("</body>", `${reloadClient}</body>`)
+          : `${html}${reloadClient}`,
+        "utf8"
+      );
+    }
+
+    response.writeHead(200, {
+      "Content-Type": types[extension] || "application/octet-stream",
+      "Cache-Control": "no-store"
+    });
+    response.end(data);
+  });
+});
+
+server.listen(port, "0.0.0.0", () => {
+  console.log(`Режим разработки: http://localhost:${port}`);
+  for (const list of Object.values(os.networkInterfaces())) {
+    for (const network of list || []) {
+      if (network.family === "IPv4" && !network.internal) {
+        console.log(`В локальной сети: http://${network.address}:${port}`);
+      }
+    }
+  }
+});

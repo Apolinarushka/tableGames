@@ -4,6 +4,7 @@
   "private": true,
   "description": "Браузерный клуб настольных игр «Тихий ход»",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node dev-server.js"
   }
 }
