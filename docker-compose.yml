@@ -1,0 +1,11 @@
+services:
+  game:
+    build:
+      context: .
+    image: table-games:local
+    container_name: table-games
+    environment:
+      PORT: "4173"
+    ports:
+      - "4173:4173"
+    restart: unless-stopped
