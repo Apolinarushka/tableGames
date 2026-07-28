@@ -12,7 +12,7 @@ services:
       - .:/app
     ports:
       - "4173:4173"
-    restart: unless-stopped
+    restart: always
     develop:
       watch:
         - action: rebuild
