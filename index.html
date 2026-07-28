@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#15251e">
+  <title>Тихий ход — клуб русских шашек</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="scene.css">
+  <link rel="stylesheet" href="motion.css">
+  <link rel="stylesheet" href="seated.css">
+  <link rel="stylesheet" href="anatomy.css">
+  <link rel="stylesheet" href="arcade.css">
+  <link rel="stylesheet" href="characters.css">
+  <link rel="stylesheet" href="profile.css">
+  <link rel="stylesheet" href="history.css">
+  <link rel="stylesheet" href="rules.css">
+</head>
+<body>
+  <main id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">●</span>
+        <div><strong>Тихий ход</strong><small>клуб русских шашек</small></div>
+      </div>
+      <div class="online"><i></i><span id="onlineCount">8 игроков в клубе</span></div>
+      <div class="profile">
+        <div class="profile-progress"><span class="rating">Рейтинг <b id="rating">1000</b></span><small id="playerLevel">Уровень после 10 партий</small></div>
+        <button class="avatar-button" id="customizeButton" aria-label="Открыть анкету игрока">
+          <span class="mini-avatar" id="miniAvatar"></span><span id="profileName">Гость</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="club" id="club" aria-label="Зал шашечного клуба">
+      <div class="club-title">
+        <span>Шашечный клуб · вечерняя сессия</span>
+        <b>Свободно 2 стола</b>
+      </div>
+      <div class="wall wall-back">
+        <button class="trophy-gallery trophy-history-trigger" id="trophyHistoryTrigger" type="button" aria-label="Открыть историю шахматных соревнований" title="История шахматных соревнований">
+          <span class="trophy-bay"><span class="wall-cup cup-gold"><i></i></span><span class="wall-medal medal-red"><i></i></span></span>
+          <span class="trophy-bay"><span class="wall-cup cup-silver tall"><i></i></span><span class="wall-medal medal-blue"><i></i></span></span>
+          <span class="trophy-bay"><span class="wall-cup cup-bronze"><i></i></span><span class="wall-medal medal-green"><i></i></span></span>
+        </button>
+        <div class="club-sign"><span>ТИХИЙ</span><em>ХОД</em></div>
+        <button class="trophy-gallery mirrored trophy-rules-trigger" id="trophyRulesTrigger" type="button" aria-label="Открыть правила клубных игр" title="Правила клубных игр">
+          <span class="trophy-bay"><span class="wall-cup cup-gold"><i></i></span><span class="wall-medal medal-red"><i></i></span></span>
+          <span class="trophy-bay"><span class="wall-cup cup-silver tall"><i></i></span><span class="wall-medal medal-blue"><i></i></span></span>
+          <span class="trophy-bay"><span class="wall-cup cup-bronze"><i></i></span><span class="wall-medal medal-green"><i></i></span></span>
+        </button>
+      </div>
+      <button class="wall-bulletin" id="wallBulletin" aria-label="Подойти к доске объявлений">
+        <span class="wall-bulletin-title">Доска клуба</span>
+        <i class="mini-note n1"></i><i class="mini-note n2"></i><i class="mini-note n3"></i>
+        <small>Объявления · Результаты</small>
+      </button>
+      <div class="floor-grid"></div>
+
+      <button class="table table-1 available" data-table="1" style="--x:20%;--y:49%" aria-label="Стол 1, свободен">
+        <span class="table-number">01</span><span class="table-top"><i></i></span>
+        <span class="table-status">Свободен</span><span class="chair c1"></span><span class="chair c2"></span>
+      </button>
+      <button class="table table-2 busy" data-table="2" style="--x:49%;--y:47%" aria-label="Стол 2, идёт партия">
+        <span class="table-number">02</span><span class="table-top"><i></i></span>
+        <span class="table-status">Идёт партия · 02:41</span><span class="chair c1"></span><span class="chair c2"></span>
+        <span class="npc npc-a facing-right npc-hair-wave npc-smile" data-character-id="yulia" aria-label="Открыть анкету Юлии" style="--npc-skin:#d9a77f;--npc-hair:#34261f;--npc-clothes:#7b4bb7"><span class="npc-name">Юлия</span><i class="npc-hair"></i><i class="npc-head"></i><i class="npc-body"></i><i class="npc-arm"></i><i class="npc-hand"></i><i class="npc-leg"></i><i class="npc-shoe"></i></span>
+        <span class="npc npc-b facing-left npc-hair-bob npc-calm" data-character-id="sofia" aria-label="Открыть анкету Софии" style="--npc-skin:#754a37;--npc-hair:#151515;--npc-clothes:#339565"><span class="npc-name">София</span><i class="npc-hair"></i><i class="npc-head"></i><i class="npc-body"></i><i class="npc-arm"></i><i class="npc-hand"></i><i class="npc-leg"></i><i class="npc-shoe"></i></span>
+      </button>
+      <button class="table table-3 available" data-table="3" style="--x:78%;--y:50%" aria-label="Стол 3, свободен">
+        <span class="table-number">03</span><span class="table-top"><i></i></span>
+        <span class="table-status">Свободен</span><span class="chair c1"></span><span class="chair c2"></span>
+      </button>
+      <button class="table table-4 busy" data-table="4" style="--x:33%;--y:69%" aria-label="Стол 4, идёт партия">
+        <span class="table-number">04</span><span class="table-top"><i></i></span>
+        <span class="table-status">Идёт партия · 00:38</span><span class="chair c1"></span><span class="chair c2"></span>
+        <span class="npc npc-c facing-right npc-hair-bun npc-freckles" data-character-id="innokentiy" aria-label="Открыть анкету Иннокентия" style="--npc-skin:#f0c39c;--npc-hair:#b57a3b;--npc-clothes:#3099cb"><span class="npc-name">Иннокентий</span><i class="npc-hair"></i><i class="npc-head"></i><i class="npc-body"></i><i class="npc-arm"></i><i class="npc-hand"></i><i class="npc-leg"></i><i class="npc-shoe"></i></span>
+        <span class="npc npc-d facing-left npc-hair-short npc-smile" data-character-id="olesya" aria-label="Открыть анкету Олеси" style="--npc-skin:#ae7656;--npc-hair:#20201c;--npc-clothes:#e0782f"><span class="npc-name">Олеся</span><i class="npc-hair"></i><i class="npc-head"></i><i class="npc-body"></i><i class="npc-arm"></i><i class="npc-hand"></i><i class="npc-leg"></i><i class="npc-shoe"></i></span>
+      </button>
+      <button class="table table-5 bot-table" data-table="5" style="--x:67%;--y:70%" aria-label="Стол 5, партия с ботом">
+        <span class="table-number">05</span><span class="table-top"><i></i></span>
+        <span class="table-status">Бот ждёт соперника</span><span class="chair c1"></span><span class="chair c2"></span>
+        <span class="npc bot facing-left npc-hair-short npc-calm" data-character-id="master" aria-label="Открыть анкету Старого Мастера" style="--npc-skin:#d9a77f;--npc-hair:#d8c2a0;--npc-clothes:#d7ad32"><span class="npc-name">Старый Мастер</span><i class="npc-hair"></i><i class="npc-head"></i><i class="npc-body"></i><i class="npc-arm"></i><i class="npc-hand"></i><i class="npc-leg"></i><i class="npc-shoe"></i></span>
+      </button>
+
+      <div class="player" id="player" style="--px:50%;--py:84%">
+        <span class="player-name" id="playerLabel">Гость</span>
+        <span class="character hair-wave face-smile" id="character"><i class="ear e1"></i><i class="ear e2"></i><i class="hair"></i><i class="head"></i><i class="body"></i><i class="arm a1"></i><i class="arm a2"></i><i class="leg l1"></i><i class="leg l2"></i></span>
+        <span class="player-shadow"></span>
+      </div>
+
+      <div class="interaction" id="interaction">Подойдите к свободному столу</div>
+      <div class="controls-hint"><span>Клик по полу — идти</span><span>Клик по столу — подойти и сесть</span><span>Клик по человеку — открыть анкету</span><kbd>F3</kbd><span>доска клуба</span></div>
+    </section>
+
+    <aside class="sidebar">
+      <div class="sidebar-tabs">
+        <button class="active" data-panel="rooms">Столы</button>
+        <button data-panel="history">История</button>
+        <button data-panel="characters">Персонажи</button>
+        <button data-panel="playerProfile">Анкета</button>
+      </div>
+      <div id="roomsPanel" class="side-panel">
+        <div class="room-row free" data-focus="1"><b>Стол 01</b><span>Свободен</span><small>Играть</small></div>
+        <div class="room-row"><b>Стол 02</b><span>Виктор · Лена</span><small>Смотреть</small></div>
+        <div class="room-row free" data-focus="3"><b>Стол 03</b><span>Свободен</span><small>Играть</small></div>
+        <div class="room-row"><b>Стол 04</b><span>Макс · Север</span><small>Смотреть</small></div>
+        <div class="room-row bot-row" data-focus="5"><b>Стол 05</b><span>Старый Мастер · бот</span><small>Вызвать</small></div>
+      </div>
+      <div id="historyPanel" class="side-panel hidden"><p class="empty-history">Сыгранных партий пока нет.</p></div>
+      <div id="charactersPanel" class="side-panel characters-panel hidden">
+        <header class="characters-panel-head">
+          <div><span>Участники клуба</span><b>Персонажи</b></div>
+          <small id="characterRosterCount">1 из 10</small>
+        </header>
+        <div class="character-roster" id="characterRoster"></div>
+      </div>
+      <div id="playerProfilePanel" class="side-panel player-profile-panel hidden">
+        <article class="player-profile-card" id="playerProfileCard"></article>
+        <button class="edit-player-profile" id="editPlayerProfile">Редактировать анкету</button>
+      </div>
+    </aside>
+
+    <section class="chat-panel">
+      <div class="chat-tabs"><button class="active" data-chat="global">Общий чат</button><button data-chat="table">За столом</button></div>
+      <div class="messages" id="messages">
+        <p><b>Лена</b><span>Кто на быструю партию?</span></p>
+        <p><b>Север</b><span>После этой сыграю.</span></p>
+        <p class="system"><span>Виктор занял стол 02</span></p>
+      </div>
+      <form id="chatForm"><input id="chatInput" maxlength="120" placeholder="Написать сообщение…" autocomplete="off"><button aria-label="Отправить">↗</button></form>
+    </section>
+  </main>
+
+  <dialog id="characterProfileDialog" class="character-profile-dialog" aria-labelledby="characterProfileName">
+    <article class="character-profile-card">
+      <button class="close" id="closeCharacterProfile" aria-label="Закрыть профиль">×</button>
+      <div class="character-profile-portrait">
+        <img id="characterProfileImage" src="assets/characters/yulia.png" alt="Портрет Юлии">
+        <div class="character-profile-fallback hidden" id="characterProfileFallback" aria-hidden="true">СМ</div>
+        <span id="characterProfileNumber">Персонаж 01</span>
+      </div>
+      <div class="character-profile-content">
+        <span class="eyebrow">Участник клуба</span>
+        <h2 id="characterProfileName">Юлия</h2>
+        <p class="character-role" id="characterProfileRole">Дружелюбный советчик</p>
+        <p class="character-bio" id="characterProfileBio"></p>
+        <section class="character-levels" aria-labelledby="characterLevelsTitle">
+          <h3 id="characterLevelsTitle">Уровень в играх</h3>
+          <div id="characterLevelGrid"></div>
+        </section>
+        <section class="character-traits" id="characterTraits"></section>
+      </div>
+    </article>
+  </dialog>
+
+  <!-- История шахматных соревнований -->
+  <dialog id="trophyHistoryDialog" class="history-dialog" aria-labelledby="trophyHistoryTitle">
+    <article class="history-article">
+      <button class="close history-close" id="closeTrophyHistory" aria-label="Закрыть статью">×</button>
+      <header>
+        <span class="eyebrow">Пасхалка клубной витрины</span>
+        <h2 id="trophyHistoryTitle">Соревнования</h2>
+        <p>От придворного турнира XVI века до современных чемпионатов мира.</p>
+      </header>
+      <div class="history-copy">
+        <p>В 1575 году в <a href="https://ru.wikipedia.org/wiki/%D0%9C%D0%B0%D0%B4%D1%80%D0%B8%D0%B4" target="_blank" rel="noopener noreferrer">Мадриде</a> при дворе короля <a href="https://ru.wikipedia.org/wiki/%D0%A4%D0%B8%D0%BB%D0%B8%D0%BF%D0%BF_II_(%D0%BA%D0%BE%D1%80%D0%BE%D0%BB%D1%8C_%D0%98%D1%81%D0%BF%D0%B0%D0%BD%D0%B8%D0%B8)" target="_blank" rel="noopener noreferrer">Филиппа II</a> был проведён первый международный шахматный турнир, в котором двум итальянским шахматистам противостояли два лучших шахматиста Испании. С XVI века начали появляться шахматные клубы, где собирались любители и полупрофессионалы, игравшие зачастую на денежную ставку. Наибольшую известность среди них приобрели <a href="https://ru.wikipedia.org/wiki/%D0%9A%D0%B0%D1%84%D0%B5_%D0%B4%D0%B5_%D0%BB%D1%8F_%D0%A0%D0%B5%D0%B6%D0%B0%D0%BD%D1%81" target="_blank" rel="noopener noreferrer">Кафе де ля Режанс</a> в <a href="https://ru.wikipedia.org/wiki/%D0%9F%D0%B0%D1%80%D0%B8%D0%B6" target="_blank" rel="noopener noreferrer">Париже</a> и <a href="https://ru.wikipedia.org/wiki/%D0%9F%D0%B0%D1%80%D1%82%D0%B8%D1%8F_%D0%B2_%D1%88%D0%B0%D1%85%D0%BC%D0%B0%D1%82%D1%8B_%D0%B2%D0%BE_%D0%B4%D0%B2%D0%BE%D1%80%D1%86%D0%B5_%D0%A4%D0%BE%D1%81%D1%81_%D0%B2_%D0%91%D0%B5%D1%80%D0%BB%D0%B8%D0%BD%D0%B5" target="_blank" rel="noopener noreferrer">Schadows Schachklub</a> в <a href="https://ru.wikipedia.org/wiki/%D0%91%D0%B5%D1%80%D0%BB%D0%B8%D0%BD" target="_blank" rel="noopener noreferrer">Берлине</a>.</p>
+        <p>В течение двух последующих веков распространение шахмат привело к появлению национальных турниров в большинстве европейских стран. Выходят шахматные издания, сначала единичные и нерегулярные, но с течением времени приобретающие всё бо́льшую популярность.</p>
+        <p>В XIX веке начали проводиться международные матчи (с 1821 года) и турниры (с 1851). На первом таком турнире, проходившем в <a href="https://ru.wikipedia.org/wiki/%D0%9B%D0%BE%D0%BD%D0%B4%D0%BE%D0%BD" target="_blank" rel="noopener noreferrer">Лондоне</a> в 1851 году, одержал победу <a href="https://ru.wikipedia.org/wiki/%D0%90%D0%BD%D0%B4%D0%B5%D1%80%D1%81%D0%B5%D0%BD,_%D0%90%D0%B4%D0%BE%D0%BB%D1%8C%D1%84" target="_blank" rel="noopener noreferrer">Адольф Андерсен</a>. Именно он стал неофициальным «шахматным королём», то есть тем, кого считали сильнейшим шахматистом мира. Впоследствии это звание оспорил <a href="https://ru.wikipedia.org/wiki/%D0%9C%D0%BE%D1%80%D1%84%D0%B8,_%D0%9F%D0%BE%D0%BB" target="_blank" rel="noopener noreferrer">Пол Морфи</a> (США), выигравший в 1858 году матч со счётом +7−2=2, однако после ухода в 1859 году Морфи с шахматной сцены Андерсен вновь стал первым, и лишь в 1866 году Вильгельм Стейниц выиграл у Андерсена матч со счётом +8−6 и стал новым «некоронованным королём».</p>
+        <p>Первым <a href="https://ru.wikipedia.org/wiki/%D0%A7%D0%B5%D0%BC%D0%BF%D0%B8%D0%BE%D0%BD%D1%8B_%D0%BC%D0%B8%D1%80%D0%B0_%D0%BF%D0%BE_%D1%88%D0%B0%D1%85%D0%BC%D0%B0%D1%82%D0%B0%D0%BC" target="_blank" rel="noopener noreferrer">чемпионом мира по шахматам</a>, который официально носил это звание, стал тот же <a href="https://ru.wikipedia.org/wiki/%D0%A1%D1%82%D0%B5%D0%B9%D0%BD%D0%B8%D1%86,_%D0%92%D0%B8%D0%BB%D1%8C%D0%B3%D0%B5%D0%BB%D1%8C%D0%BC" target="_blank" rel="noopener noreferrer">Вильгельм Стейниц</a>, победив <a href="https://ru.wikipedia.org/wiki/%D0%A6%D1%83%D0%BA%D0%B5%D1%80%D1%82%D0%BE%D1%80%D1%82,_%D0%98%D0%BE%D0%B3%D0%B0%D0%BD%D0%BD_%D0%93%D0%B5%D1%80%D0%BC%D0%B0%D0%BD" target="_blank" rel="noopener noreferrer">Иоганна Цукерторта</a> в первом в истории матче, в соглашении о котором появилось выражение «матч на первенство мира». Таким образом, явочным порядком сложилась система преемственности звания: новым чемпионом мира становился тот, кто выигрывал матч у предыдущего, при этом действующий чемпион оставлял за собой право согласиться на матч или отвергнуть соперника. В связи с этим он фактически же определял условия и место проведения матча. В некоторых соглашениях предусматривалось право чемпиона на матч-реванш в случае проигрыша; победа в таком матче возвращала чемпионское звание предыдущему владельцу.</p>
+        <p>Формально ничто не могло вынудить чемпиона принять вызов, однако из соображений сохранения репутации он не мог безосновательно отказать претенденту, если тот зарекомендовал себя достаточно сильным игроком. Тем не менее уже для второго чемпиона мира <a href="https://ru.wikipedia.org/wiki/%D0%9B%D0%B0%D1%81%D0%BA%D0%B5%D1%80,_%D0%AD%D0%BC%D0%B0%D0%BD%D1%83%D0%B8%D0%BB" target="_blank" rel="noopener noreferrer">Эмануила Ласкера</a> обычным делом было создание различных искусственных препятствий и затягивание переговоров о матче с сильными претендентами, иногда на годы. Первый свой матч на первенство мира в ранге действующего чемпиона он сыграл лишь десять лет спустя после завоевания этого звания, в 1905 году с Фрэнком <a href="https://ru.wikipedia.org/wiki/%D0%9C%D0%B0%D1%80%D1%88%D0%B0%D0%BB%D0%BB,_%D0%A4%D1%80%D1%8D%D0%BD%D0%BA_%D0%94%D0%B6%D0%B5%D0%B9%D0%BC%D1%81" target="_blank" rel="noopener noreferrer">Маршаллом</a>. В 1914 году крупнейшие шахматные федерации того времени предприняли первую попытку упорядочить розыгрыш звания чемпиона мира, для чего был организован Санкт-Петербургский турнир маэстро. Однако этому помешало начало <a href="https://ru.wikipedia.org/wiki/%D0%9F%D0%B5%D1%80%D0%B2%D0%B0%D1%8F_%D0%BC%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D1%8F_%D0%B2%D0%BE%D0%B9%D0%BD%D0%B0" target="_blank" rel="noopener noreferrer">мировой войны</a>. В 1922 году по настоянию <a href="https://ru.wikipedia.org/wiki/%D0%A5%D0%BE%D1%81%D0%B5_%D0%A0%D0%B0%D1%83%D0%BB%D1%8C_%D0%9A%D0%B0%D0%BF%D0%B0%D0%B1%D0%BB%D0%B0%D0%BD%D0%BA%D0%B0" target="_blank" rel="noopener noreferrer">Хосе Рауля Капабланки</a> сильнейшими участниками турнира в Лондоне был подписан <a href="https://ru.wikipedia.org/wiki/%D0%9B%D0%BE%D0%BD%D0%B4%D0%BE%D0%BD%D1%81%D0%BA%D0%BE%D0%B5_%D1%81%D0%BE%D0%B3%D0%BB%D0%B0%D1%88%D0%B5%D0%BD%D0%B8%D0%B5" target="_blank" rel="noopener noreferrer">Лондонский протокол</a>, согласно которому чемпион под угрозой лишения звания был обязан принять вызов претендента, если тот входит в число «общепризнанных маэстро» и обеспечит финансирование матча.</p>
+        <p>Первый общепризнанный <a href="https://ru.wikipedia.org/wiki/%D0%9C%D0%B0%D1%82%D1%87%D0%B8_%D0%B7%D0%B0_%D0%B7%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5_%D1%87%D0%B5%D0%BC%D0%BF%D0%B8%D0%BE%D0%BD%D0%B0_%D0%BC%D0%B8%D1%80%D0%B0_%D0%BF%D0%BE_%D1%88%D0%B0%D1%85%D0%BC%D0%B0%D1%82%D0%B0%D0%BC" target="_blank" rel="noopener noreferrer">чемпионат мира по шахматам</a> под эгидой <a href="https://ru.wikipedia.org/wiki/%D0%A4%D0%98%D0%94%D0%95" target="_blank" rel="noopener noreferrer">ФИДЕ</a> был проведён в 1948 году. После смерти непобеждённого Александра Алехина и согласия ведущих шахматистов мира старая система преемственности звания прекратила своё действие. Победителем стал советский гроссмейстер <a href="https://ru.wikipedia.org/wiki/%D0%91%D0%BE%D1%82%D0%B2%D0%B8%D0%BD%D0%BD%D0%B8%D0%BA,_%D0%9C%D0%B8%D1%85%D0%B0%D0%B8%D0%BB_%D0%9C%D0%BE%D0%B8%D1%81%D0%B5%D0%B5%D0%B2%D0%B8%D1%87" target="_blank" rel="noopener noreferrer">Михаил Ботвинник</a>. ФИДЕ ввела систему отборочных соревнований: победители национальных первенств выходили в зональные турниры, затем в межзональный и кандидатский турнир или серию матчей, по итогам которых определялся соперник действующего чемпиона.</p>
+        <p>С 1993 по 2006 год существовали разногласия по поводу того, кому принадлежит <a href="https://ru.wikipedia.org/wiki/%D0%A7%D0%B5%D0%BC%D0%BF%D0%B8%D0%BE%D0%BD%D1%8B_%D0%BC%D0%B8%D1%80%D0%B0_%D0%BF%D0%BE_%D1%88%D0%B0%D1%85%D0%BC%D0%B0%D1%82%D0%B0%D0%BC" target="_blank" rel="noopener noreferrer">титул чемпиона мира</a>. Было два чемпиона мира — по версии ПША и по версии ФИДЕ. После серии договорённостей и проведения <a href="https://ru.wikipedia.org/wiki/%D0%9C%D0%B0%D1%82%D1%87_%D0%B7%D0%B0_%D0%B7%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5_%D1%87%D0%B5%D0%BC%D0%BF%D0%B8%D0%BE%D0%BD%D0%B0_%D0%BC%D0%B8%D1%80%D0%B0_%D0%BF%D0%BE_%D1%88%D0%B0%D1%85%D0%BC%D0%B0%D1%82%D0%B0%D0%BC_2006_%D0%B3." target="_blank" rel="noopener noreferrer">объединительного матча Крамник — Топалов в 2006 году</a> восстановлена монополия ФИДЕ на проведение мирового первенства. Первым «объединённым» чемпионом мира стал <a href="https://ru.wikipedia.org/wiki/%D0%9A%D1%80%D0%B0%D0%BC%D0%BD%D0%B8%D0%BA,_%D0%92%D0%BB%D0%B0%D0%B4%D0%B8%D0%BC%D0%B8%D1%80%D0%BE%D0%B2%D0%B8%D1%87" target="_blank" rel="noopener noreferrer">Владимир Крамник</a>. В настоящее время чемпионом мира по шахматам является <a href="https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D0%BC%D0%BC%D0%B0%D1%80%D0%B0%D0%B4%D0%B6%D1%83,_%D0%93%D1%83%D0%BA%D0%B5%D1%88" target="_blank" rel="noopener noreferrer">Гукеш Доммараджу</a>.</p>
+        <p>С 1927 года проводятся отдельные чемпионаты мира по шахматам среди женщин, при этом женщины имеют право участвовать и в розыгрыше основного титула. Первой чемпионкой мира была <a href="https://ru.wikipedia.org/wiki/%D0%9C%D0%B5%D0%BD%D1%87%D0%B8%D0%BA" target="_blank" rel="noopener noreferrer">Вера Менчик</a> из Великобритании. Затем до начала 1990-х годов титул принадлежал советским шахматисткам: Людмиле Руденко, Елизавете Быковой, Ольге Рубцовой, Ноне Гаприндашвили и Майе Чибурданидзе. В последующие годы чемпионками становились представительницы Китая, России и Украины, среди них Александра Костенюк, Хоу Ифань, Анна Ушенина, Мария Музычук и Тань Чжунъи.</p>
+      </div>
+    </article>
+  </dialog>
+
+  <!-- Правила шести клубных игр -->
+  <dialog id="trophyRulesDialog" class="rules-dialog" aria-labelledby="rulesDialogTitle">
+    <article class="rules-book">
+      <button class="close rules-close" id="closeTrophyRules" aria-label="Закрыть правила">×</button>
+      <header class="rules-book-header">
+        <span class="eyebrow">Справочник клуба</span>
+        <h2 id="rulesDialogTitle">Правила игр</h2>
+        <p>Выберите закладку, чтобы узнать цель игры, допустимые ходы и порядок подсчёта.</p>
+      </header>
+
+      <nav class="rules-tabs" role="tablist" aria-label="Игры клуба">
+        <button id="rulesTabCheckers" class="active" type="button" role="tab" aria-selected="true" aria-controls="rulesCheckers" data-rules-tab="checkers">Шашки</button>
+        <button id="rulesTabGiveaway" type="button" role="tab" aria-selected="false" aria-controls="rulesGiveaway" data-rules-tab="giveaway" tabindex="-1">Поддавки</button>
+        <button id="rulesTabCorners" type="button" role="tab" aria-selected="false" aria-controls="rulesCorners" data-rules-tab="corners" tabindex="-1">Уголки</button>
+        <button id="rulesTabChess" type="button" role="tab" aria-selected="false" aria-controls="rulesChess" data-rules-tab="chess" tabindex="-1">Шахматы</button>
+        <button id="rulesTabDomino" type="button" role="tab" aria-selected="false" aria-controls="rulesDomino" data-rules-tab="domino" tabindex="-1">Домино</button>
+        <button id="rulesTabFives" type="button" role="tab" aria-selected="false" aria-controls="rulesFives" data-rules-tab="fives" tabindex="-1">Пятёрочки</button>
+      </nav>
+
+      <div class="rules-pages">
+        <section class="rules-page active" id="rulesCheckers" role="tabpanel" aria-labelledby="rulesTabCheckers" data-rules-page="checkers">
+          <div class="rules-title"><span class="rules-icon">⛀</span><div><h3>Русские шашки</h3><p>Обязательное взятие · летающие дамки · доска 8×8</p></div></div>
+          <div class="rules-grid">
+            <section><h4>Цель и начальная позиция</h4><p>У каждого игрока по 12 шашек на тёмных полях первых трёх горизонталей. Белые ходят первыми. Побеждает тот, кто снял все шашки соперника или лишил его допустимых ходов.</p></section>
+            <section><h4>Как ходит простая шашка</h4><p>Без взятия — на одно свободное тёмное поле по диагонали только вперёд. При взятии перепрыгивает соседнюю шашку соперника на свободное поле за ней; бить разрешено и вперёд, и назад.</p></section>
+            <section><h4>Взятие</h4><p>Если взятие возможно, оно обязательно. После прыжка бой продолжается той же шашкой, пока доступна следующая жертва. Игрок выбирает любой допустимый маршрут: брать максимальное число шашек не требуется. Побитые шашки снимаются после завершения всей цепочки.</p></section>
+            <section><h4>Дамка</h4><p>На последней горизонтали простая становится дамкой. Дамка ходит по свободной диагонали на любое расстояние и при бое может приземлиться на любое свободное поле за побитой шашкой. Если превращение произошло во время боя, продолжение выполняется уже по правилам дамки.</p></section>
+            <section><h4>Счёт и завершение</h4><p>Очки за отдельные шашки не начисляются — важен исход партии. В клубной таблице: победа — 2 очка, ничья — 1 каждому, поражение — 0. Ничья возможна по соглашению, при повторении позиции или отсутствии прогресса.</p></section>
+            <section><h4>Особенности</h4><ul><li>Играть можно только по тёмным полям.</li><li>Нельзя отказаться от обязательного боя.</li><li>За один ход разрешена длинная серия взятий.</li><li>Ход длится не более одной минуты.</li></ul></section>
+          </div>
+        </section>
+
+        <section class="rules-page" id="rulesGiveaway" role="tabpanel" aria-labelledby="rulesTabGiveaway" data-rules-page="giveaway" hidden>
+          <div class="rules-title"><span class="rules-icon">↘</span><div><h3>Поддавки</h3><p>Все ходы как в русских шашках, но цель обратная</p></div></div>
+          <div class="rules-grid">
+            <section><h4>Цель</h4><p>Нужно первым избавиться от всех своих шашек либо оказаться без допустимого хода. Игрок, который в обычных шашках проиграл бы, в поддавках выигрывает.</p></section>
+            <section><h4>Ходы и дамки</h4><p>Простая ходит вперёд на одно поле, бьёт вперёд и назад. Дамка перемещается и бьёт по диагонали на любое расстояние. Превращение на последней горизонтали обязательно.</p></section>
+            <section><h4>Обязательный бой</h4><p>Взятие обязательно, включая продолжение серии. Поэтому основная стратегия — подставить свои шашки так, чтобы соперник был вынужден их забрать, и не открыть ему выгодную ответную подставку.</p></section>
+            <section><h4>Счёт</h4><p>Количество оставшихся шашек не превращается в очки. Победа даётся игроку, первым выполнившему цель; клубная таблица использует 2 очка за победу, 1 за ничью и 0 за поражение.</p></section>
+            <section><h4>Конец партии</h4><p>Партия заканчивается немедленно, когда у игрока не осталось шашек или ни одна его шашка не может сделать ход. Повторение позиции и отсутствие прогресса могут привести к ничьей.</p></section>
+            <section><h4>Главная особенность</h4><p>Материальное преимущество часто невыгодно. Ценность позиции определяется тем, может ли игрок заставить соперника брать и сможет ли отдать последнюю шашку.</p></section>
+          </div>
+        </section>
+
+        <section class="rules-page" id="rulesCorners" role="tabpanel" aria-labelledby="rulesTabCorners" data-rules-page="corners" hidden>
+          <div class="rules-title"><span class="rules-icon">◆</span><div><h3>Уголки</h3><p>Девять фишек · восемь направлений · цепочки прыжков</p></div></div>
+          <div class="rules-grid">
+            <section><h4>Цель и расстановка</h4><p>У каждого игрока девять фишек, занимающих квадрат 3×3 в противоположных углах доски 8×8. Нужно раньше соперника полностью перевести все свои фишки в его исходный угол.</p></section>
+            <section><h4>Обычный ход</h4><p>Фишка перемещается на одну соседнюю свободную клетку по вертикали, горизонтали или диагонали — всего до восьми направлений. Фигуры не снимаются с доски.</p></section>
+            <section><h4>Прыжок</h4><p>Можно перепрыгнуть через соседнюю свою или чужую фишку, если клетка сразу за ней свободна. Прыгать разрешено во всех восьми направлениях.</p></section>
+            <section><h4>Цепочка</h4><p>После прыжка той же фишкой можно выполнить следующий прыжок. Направление разрешено менять. Игрок вправе закончить цепочку раньше, если вариант кажется ему выгоднее.</p></section>
+            <section><h4>Счёт</h4><p>Захватов и материальных очков нет. Показатели у игроков обозначают число фишек. Победа фиксируется, когда все девять заняли целевой квадрат; в турнире начисляются 2/1/0.</p></section>
+            <section><h4>Особенности</h4><ul><li>Нужно строить «лестницы» для длинных прыжков.</li><li>Полезно освобождать свой исходный угол заранее.</li><li>Нельзя оставлять одну отставшую фишку без маршрута.</li></ul></section>
+          </div>
+        </section>
+
+        <section class="rules-page" id="rulesChess" role="tabpanel" aria-labelledby="rulesTabChess" data-rules-page="chess" hidden>
+          <div class="rules-title"><span class="rules-icon">♚</span><div><h3>Шахматы</h3><p>Мат королю · специальные ходы · шахматная нотация</p></div></div>
+          <div class="rules-grid">
+            <section class="rules-wide"><h4>Доска и начальная позиция</h4><p>Вертикали обозначаются латинскими буквами a–h, горизонтали — цифрами 1–8; левое нижнее поле со стороны белых — тёмное a1. На первой горизонтали белых стоят ладья, конь, слон, ферзь, король, слон, конь, ладья; на второй — восемь пешек. Чёрные стоят зеркально. Ферзь занимает поле своего цвета. Первыми ходят белые.</p></section>
+            <section><h4>Пешка</h4><p>Идёт вперёд на одно поле, а с исходной позиции может пройти два свободных поля. Бьёт на одно поле по диагонали вперёд. На последней горизонтали превращается в ферзя, ладью, слона или коня. Возможное сразу после двойного хода особое взятие называется взятием на проходе.</p></section>
+            <section><h4>Конь</h4><p>Ходит буквой «Г»: на два поля по одной координате и на одно по другой. Это единственная фигура, способная перепрыгивать через свои и чужие фигуры.</p></section>
+            <section><h4>Слон</h4><p>Ходит на любое свободное расстояние по диагонали. Каждый слон всю партию остаётся на полях одного цвета.</p></section>
+            <section><h4>Ладья</h4><p>Ходит на любое свободное расстояние по вертикали или горизонтали. Участвует вместе с королём в рокировке.</p></section>
+            <section><h4>Ферзь</h4><p>Совмещает возможности ладьи и слона: ходит на любое свободное расстояние по вертикали, горизонтали и диагонали.</p></section>
+            <section><h4>Король</h4><p>Ходит на одно соседнее поле в любом направлении. Короля нельзя поставить или оставить под ударом. Короли не могут стоять на соседних полях.</p></section>
+            <section class="rules-wide"><h4>Рокировка</h4><p>Король перемещается на два поля к ладье, а ладья становится рядом с ним с другой стороны. Рокировка разрешена, если король и выбранная ладья ещё не ходили, между ними нет фигур, король не находится под шахом и не пересекает атакованное поле. Короткая обозначается 0-0, длинная — 0-0-0.</p></section>
+            <section><h4>Шах, мат и пат</h4><p>Шах — нападение на короля; его нужно устранить уходом, защитой или взятием атакующей фигуры. Мат — шах, от которого нет защиты, и победа атакующего. Пат — отсутствие допустимого хода без шаха, что означает ничью.</p></section>
+            <section><h4>Счёт</h4><p>Стоимость фигур — ориентир, а не игровые очки: пешка 1, конь и слон примерно 3, ладья 5, ферзь 9. Партия оценивается по результату: победа 1, ничья ½, поражение 0; в клубной общей таблице это переводится в 2/1/0.</p></section>
+            <section class="rules-wide"><h4>Завершение и ничья</h4><p>Победа наступает при мате, сдаче соперника или истечении его времени, если мат теоретически возможен. Ничья фиксируется при пате, соглашении, недостаточном материале, троекратном повторении по требованию игрока или после 50 ходов без хода пешкой и взятия. Пятикратное повторение и 75 таких ходов завершают партию автоматически; мат имеет приоритет.</p></section>
+          </div>
+        </section>
+
+        <section class="rules-page" id="rulesDomino" role="tabpanel" aria-labelledby="rulesTabDomino" data-rules-page="domino" hidden>
+          <div class="rules-title"><span class="rules-icon">▦</span><div><h3>Домино «Козёл»</h3><p>Штрафные очки · «голый» 0:0 · «баян» 6:6 · предел 101</p></div></div>
+          <aside class="rules-extras" aria-label="Краткий справочник дополнительных правил домино">
+            <header><span>Дополнительные правила</span><small>Краткий словарь «Козла» и «Морского козла»</small></header>
+            <div class="rules-extras-grid">
+              <article><b class="extra-mark">0:0</b><div><h4>«Голый»</h4><p>Одинокий пустой дубль в конце кона — 25 штрафных очков. Рядом с другими костями считается обычно.</p></div></article>
+              <article><b class="extra-mark">6:6</b><div><h4>«Баян»</h4><p>Одинокий старший дубль — 50 очков. Вместе с единственным 0:0 оба дубля дают 75.</p></div></article>
+              <article><b class="extra-mark egg-mark">0</b><div><h4>«Яйца»</h4><p>Недобор меньше 13 или равная «рыба» записываются нулём. Одно яйцо даёт множитель ×2, два — ×3.</p></div></article>
+              <article><b class="extra-mark fish-mark">≈</b><div><h4>«Рыба»</h4><p>Никто не может ходить, базар пуст. Игроки вскрывают кости и сравнивают остатки.</p></div></article>
+            </div>
+          </aside>
+          <div class="rules-grid">
+            <section><h4>Цель и общий счёт</h4><p>Нужно удержать свой штрафной счёт ниже 101 очка. После кона проигравший записывает сумму оставшихся костей, если она достигла установленного минимума. Игрок, достигший 101 очка или превысивший этот рубеж, проигрывает весь матч.</p></section>
+            <section><h4>Комплект и раздача</h4><p>Используются 28 костей двойного шестёрочного набора — от 0:0 до 6:6. Каждый получает по семь костей, остальные образуют закрытый базар.</p></section>
+            <section><h4>Первый ход</h4><p>В первом коне начинает обладатель старшего дубля. Если дублей нет, сравнивается сумма точек на костях. В следующих конах право первого хода переходит победителю предыдущего кона.</p></section>
+            <section><h4>Как ходить</h4><p>Кость приставляется к одному из двух открытых концов цепочки одинаковым числом точек. Кость при необходимости разворачивается, а дубли располагаются перпендикулярно основной линии.</p></section>
+            <section><h4>Базар</h4><p>Если подходящей кости нет, игрок нажимает «Базар» и берёт по одной кости, пока не получит допустимый ход или пока базар не опустеет. При пустом базаре ход пропускается.</p></section>
+            <section><h4>Конец кона</h4><p>Кон выигрывает тот, кто первым выложил все кости. Если продолжать цепочку больше невозможно, игра останавливается и начинается подсчёт остатков.</p></section>
+            <section class="rules-wide rules-note"><h4>«Рыба» — полная блокировка</h4><p>«Рыба» возникает, когда ни один игрок не может сделать ход и базар уже пуст. Самый узнаваемый случай: на обоих открытых концах цепочки стоит одно и то же число, а костей с таким значением больше нет ни на руках, ни в базаре. Изогнутая и заблокированная с двух сторон цепочка напоминает рыбный скелет — отсюда название. Игра немедленно останавливается, все игроки вскрывают оставшиеся <strong>кости</strong>, после чего сравнивается сумма точек. Меньшая сумма выигрывает; равные суммы создают отложенное «яйцо».</p></section>
+            <section class="rules-special"><h4>Что такое «яйца»?</h4><p>«Яйцами» называют записанный в таблицу ноль или прочерк: игрок проиграл кон, но штрафные очки пока не получил. Знак 0 визуально напоминает яйцо. На игровом экране отдельно показываются количество накопленных «яиц» и будущий множитель.</p></section>
+            <section class="rules-special"><h4>Недобор очков</h4><p>В клубной версии штраф записывается только при остатке <strong>13 очков и более</strong>. Если проигравший оставил меньше 13 — например, 2:3 и 1:1, всего 7, — эти очки списываются, в таблице появляется 0, а «яйцо» остаётся ждать следующего кона. В некоторых регионах используют порог 25, но здесь выбран порог 13.</p></section>
+            <section class="rules-wide"><h4>Накопление и умножение</h4><p>Первое «яйцо» делает следующий записываемый штраф двойным. Если следующий кон снова закончился недобором или равной «рыбой», появляется второе «яйцо» — «яйца с прицепом» — и будущий штраф становится тройным. Каждое следующее «яйцо» увеличивает множитель ещё на один: без яиц ×1, одно яйцо ×2, два ×3. После начисления умноженного штрафа накопленные «яйца» погашаются.</p></section>
+            <section class="rules-wide rules-note"><h4>Опасность «баяна» после яиц</h4><p>Если после одного «яйца» проигравший остаётся с единственным дублем 6:6, фиксированные 50 очков удваиваются: <strong>50 × 2 = 100</strong>. В клубной версии такой «баян с яйцом» считается мгновенным проигрышем матча, даже если общий счёт до начисления был нулевым.</p></section>
+            <section class="rules-special"><h4>«Голый» или «сопля» — 0:0</h4><p>Так называют пустой дубль 0:0, а иногда и любую кость с нулём. Обычно 0:0 весит ноль, но если в конце кона он остался у игрока <strong>единственной костью</strong>, вместо нуля начисляется фиксированный штраф 25 очков.</p></section>
+            <section class="rules-special"><h4>«Баян» или «кабан» — 6:6</h4><p>Старший дубль 6:6 обычно содержит 12 точек. Если в конце кона он остался на руке <strong>единственной костью</strong>, применяется повышенный фиксированный штраф 50 очков.</p></section>
+            <section class="rules-wide"><h4>Строгое правило одинокого дубля</h4><p>Специальный номинал действует только при одиночестве. Если на руке остались 0:0 и 1:2, они считаются обычно: 0 + 3 = 3 очка. Если остался только 0:0 — это 25 очков; только 6:6 — 50 очков. Если единственными двумя костями остались сразу 0:0 и 6:6, их фиксированные штрафы складываются: <strong>25 + 50 = 75 очков</strong>.</p></section>
+            <section class="rules-wide rules-note"><h4>Зачем нужны повышенные штрафы?</h4><p>«Голый» не должен становиться безопасной костью с нулевой ценой, которую выгодно намеренно придерживать. «Баян» наказывается за рискованное удержание самого старшего дубля до конца кона. Благодаря этому обе кости приходится своевременно вводить в игру.</p></section>
+            <section class="rules-wide"><h4>Региональное правило первого хода</h4><p>В некоторых дворовых вариантах, включая «Морского козла», первый ход с 6:6 считается особым риском: проигравшей кон стороне дополнительно начисляют 50 очков. В клубном справочнике это отмечено как <strong>договорное правило</strong> — оно применяется только тогда, когда игроки согласовали его до начала матча.</p></section>
+            <section class="rules-wide"><h4>Турнирный результат</h4><p>Штрафы определяют победителя матча в «Козла». После завершения матча результат переносится в общую клубную таблицу: победа — 2 турнирных очка, ничья — 1 каждому, поражение — 0.</p></section>
+          </div>
+        </section>
+
+        <section class="rules-page" id="rulesFives" role="tabpanel" aria-labelledby="rulesTabFives" data-rules-page="fives" hidden>
+          <div class="rules-title"><span class="rules-icon">⑤</span><div><h3>Домино «Пятёрочки»</h3><p>Очки за открытые концы · несколько раундов · цель 100</p></div></div>
+          <div class="rules-grid">
+            <section><h4>Цель и первый ход</h4><p>Первым набрать 100 очков. Право первого хода разыгрывается монеткой; начать можно любой костью, не обязательно дублем. Самый первый выставленный дубль становится особой центральной костью — «Домом», или «Крестом».</p></section>
+            <section><h4>Как ходить</h4><p>Кости соединяются совпадающими значениями, как в классическом домино. До появления «Дома» цепочка растёт с двух краёв. После его появления разрешены ходы в четырёх направлениях: влево, вправо, вверх и вниз. Если хода нет, игрок берёт кости из базара до появления подходящей.</p></section>
+            <section><h4>Очки за ход</h4><p>После каждого хода складываются точки на всех свободных концах всех активных линий. Если сумма делится на 5 — например, 5, 10, 15 или 20 — игрок сразу получает столько же очков. Открытый дубль считается обеими половинками.</p></section>
+            <section><h4>«Пятёрки» на табло</h4><p>Счёт показывается двумя способами: общими очками и количеством собранных пятёрок. Например, 25 очков соответствуют отметке 5×5.</p></section>
+            <section><h4>Конец обычного раунда</h4><p>Когда игрок выложил все кости, точки на костях соперника складываются и округляются до ближайшего числа, кратного пяти: 1–2 → 0, 3–7 → 5, 8–12 → 10 и далее. Результат прибавляется победителю.</p></section>
+            <section class="rules-wide rules-note"><h4>«Дом», или «Крест»</h4><p>Первый дубль на столе становится центральным перекрёстком и открывает четыре независимые линии. Пока к верхнему или нижнему торцу «Дома» не приставлена кость, каждый свободный торец продолжает участвовать в сумме своим номиналом. Когда заняты все четыре стороны, подсчёт ведётся по четырём внешним концам получившихся ветвей. «Дом» действует до конца раунда.</p></section>
+            <section class="rules-wide"><h4>Пример подсчёта «Дома»</h4><p>Дубль <strong>4:4</strong> первым выходит на стол и становится «Домом»: открытая сумма равна <strong>4 + 4 = 8</strong>, очков нет. К боковой стороне добавляют <strong>4:2</strong>: теперь сумма равна <strong>2 + 4 + 4 + 4 = 14</strong>. Затем к перпендикулярной стороне ставят <strong>4:5</strong>: сумма становится <strong>2 + 5 + 4 + 4 = 15</strong>. Поскольку 15 делится на 5, сделавший ход игрок немедленно получает <strong>15 очков</strong>.</p></section>
+            <section class="rules-wide rules-note"><h4>«Рыба»</h4><p>Если ни один игрок не может продолжить цепочку и базар пуст, раунд блокируется — наступает «рыба». Часто на обоих концах находится одинаковое число, для которого больше нет подходящих костей. Игроки вскрывают остатки: побеждает меньшая сумма, из остатка соперника вычитается остаток победителя, разница округляется до ближайших пяти и зачисляется победителю.</p></section>
+            <section class="rules-wide"><h4>Матч</h4><p>После завершения раунда начинается новый с сохранением общего счёта. Матч заканчивается, как только один из игроков достиг 100 очков. В клубной турнирной таблице победитель матча получает 2 очка, при ничейном результате — по 1.</p></section>
+          </div>
+        </section>
+      </div>
+    </article>
+  </dialog>
+
+  <dialog id="bulletinDialog" class="bulletin-dialog">
+    <div class="bulletin-shell">
+      <header class="bulletin-header">
+        <div><span class="eyebrow">Шашечный клуб</span><h2>Доска клуба</h2></div>
+        <button id="closeBulletin" class="close" aria-label="Закрыть">×</button>
+      </header>
+      <nav class="bulletin-tabs" aria-label="Разделы доски">
+        <button class="active" data-bulletin-tab="notices">Объявления</button>
+        <button data-bulletin-tab="standings">Таблица результатов</button>
+      </nav>
+      <section class="bulletin-panel cork-panel" id="noticesPanel">
+        <div class="sticky-grid" id="stickyGrid"></div>
+        <form class="notice-form" id="noticeForm">
+          <label for="noticeInput">Новое объявление</label>
+          <div><textarea id="noticeInput" maxlength="140" placeholder="Например: Ищу соперника на вечернюю партию"></textarea><button>Прикрепить</button></div>
+        </form>
+      </section>
+      <section class="bulletin-panel standings-panel hidden" id="standingsPanel">
+        <div class="standings-summary">
+          <div><span class="eyebrow">Клубный круг</span><h3>Турнирная таблица</h3></div>
+          <p><b>2</b> за победу · <b>1</b> за ничью · <b>0</b> за поражение</p>
+        </div>
+        <div class="standings-scroll">
+          <table class="standings-table" id="standingsTable" aria-label="Таблица результатов игроков"></table>
+        </div>
+        <div class="standings-rules">
+          <h4>Правила подсчёта очков</h4>
+          <ul>
+            <li><b>Победа — 2 очка.</b> Победителем считается игрок, забравший все шашки соперника или лишивший его возможного хода.</li>
+            <li><b>Ничья — 1 очко каждому игроку.</b> Результат фиксируется по взаимному согласию или согласно правилам ничейной позиции.</li>
+            <li><b>Поражение — 0 очков.</b> Также засчитывается при истечении времени на ход или выходе из незавершённой партии.</li>
+            <li>Место определяется по сумме очков. При равенстве выше располагается игрок с большим числом побед, затем учитывается рейтинг.</li>
+          </ul>
+          <p>Ячейки в центре показывают результат встречи с игроком под соответствующим номером. Таблица и места пересчитываются после каждой партии.</p>
+          <strong>Желаем побед в дружеском турнире!</strong>
+        </div>
+      </section>
+    </div>
+  </dialog>
+
+  <dialog id="customizer" class="customizer">
+    <form method="dialog">
+      <button class="close" value="cancel" aria-label="Закрыть">×</button>
+      <span class="eyebrow">Профиль участника</span><h2>Анкета игрока</h2>
+      <section class="social-auth" aria-labelledby="socialAuthTitle">
+        <div>
+          <h3 id="socialAuthTitle">Вход через социальную сеть</h3>
+          <p id="socialAuthStatus">Вы играете как локальный гость</p>
+        </div>
+        <div class="social-auth-buttons">
+          <button type="button" data-social-provider="VK"><b>VK</b><span>ВКонтакте</span></button>
+          <button type="button" data-social-provider="Yandex"><b>Я</b><span>Яндекс</span></button>
+          <button type="button" data-social-provider="Google"><b>G</b><span>Google</span></button>
+          <button type="button" data-social-provider="Telegram"><b>➤</b><span>Telegram</span></button>
+        </div>
+        <small class="social-auth-note">В локальной версии сохраняется выбранный способ входа. Безопасный OAuth будет подключён на сервере при публикации.</small>
+      </section>
+      <div class="customizer-body">
+        <div class="profile-visual-column">
+          <div class="avatar-preview">
+            <span class="character large hair-wave face-smile" id="avatarPreview"><i class="ear e1"></i><i class="ear e2"></i><i class="hair"></i><i class="head"></i><i class="body"></i><i class="arm a1"></i><i class="arm a2"></i><i class="leg l1"></i><i class="leg l2"></i></span>
+            <img class="uploaded-profile-photo hidden" id="profilePhotoPreview" alt="Ваша фотография">
+          </div>
+          <label class="photo-upload-button" for="profilePhotoInput">Загрузить реальную фотографию
+            <input id="profilePhotoInput" type="file" accept="image/png,image/jpeg,image/webp">
+          </label>
+          <button class="remove-profile-photo hidden" id="removeProfilePhoto" type="button">Удалить фотографию</button>
+          <p class="photo-help">JPG, PNG или WebP. Фотография уменьшается перед сохранением на этом устройстве.</p>
+        </div>
+        <div class="fields">
+          <div class="profile-fields-grid">
+            <label>Ник<input id="nameInput" maxlength="20" value="Гость" autocomplete="nickname"></label>
+            <label>Город<input id="cityInput" maxlength="40" placeholder="Например, Москва" autocomplete="address-level2"></label>
+            <label>Дата рождения<input id="birthDateInput" type="date" autocomplete="bday"></label>
+            <label>Часовой пояс
+              <select id="timezoneInput">
+                <option value="Europe/Kaliningrad">Калининград · UTC+2</option>
+                <option value="Europe/Moscow">Москва · UTC+3</option>
+                <option value="Europe/Samara">Самара · UTC+4</option>
+                <option value="Asia/Yekaterinburg">Екатеринбург · UTC+5</option>
+                <option value="Asia/Omsk">Омск · UTC+6</option>
+                <option value="Asia/Krasnoyarsk">Красноярск · UTC+7</option>
+                <option value="Asia/Irkutsk">Иркутск · UTC+8</option>
+                <option value="Asia/Yakutsk">Якутск · UTC+9</option>
+                <option value="Asia/Vladivostok">Владивосток · UTC+10</option>
+                <option value="Asia/Magadan">Магадан · UTC+11</option>
+                <option value="Asia/Kamchatka">Камчатка · UTC+12</option>
+                <option value="UTC">UTC</option>
+              </select>
+            </label>
+          </div>
+          <label>Интересы<input id="interestsInput" maxlength="180" placeholder="Кино, джаз, литература, путешествия"></label>
+          <div class="interest-suggestions" aria-label="Подсказки интересов">
+            <button type="button" data-interest="Шахматы">Шахматы</button>
+            <button type="button" data-interest="Шашки">Шашки</button>
+            <button type="button" data-interest="Кино">Кино</button>
+            <button type="button" data-interest="Музыка">Музыка</button>
+            <button type="button" data-interest="Литература">Литература</button>
+            <button type="button" data-interest="Путешествия">Путешествия</button>
+          </div>
+          <fieldset class="activity-editor">
+            <legend>Обычно активен в клубе</legend>
+            <div>
+              <label>С<input id="activityFromInput" type="time" value="18:00" step="3600"></label>
+              <label>До<input id="activityToInput" type="time" value="23:00" step="3600"></label>
+            </div>
+            <div class="activity-hours" id="activityHoursPreview" aria-label="Часы активности"></div>
+          </fieldset>
+          <fieldset><legend>Одежда</legend><div class="swatches" id="clothesSwatches">
+            <button type="button" data-color="#c84a42" style="--color:#c84a42" class="selected" aria-label="Красная одежда" title="Красный"></button>
+            <button type="button" data-color="#e0782f" style="--color:#e0782f" aria-label="Оранжевая одежда" title="Оранжевый"></button>
+            <button type="button" data-color="#d7ad32" style="--color:#d7ad32" aria-label="Жёлтая одежда" title="Жёлтый"></button>
+            <button type="button" data-color="#339565" style="--color:#339565" aria-label="Зелёная одежда" title="Зелёный"></button>
+            <button type="button" data-color="#3099cb" style="--color:#3099cb" aria-label="Голубая одежда" title="Голубой"></button>
+            <button type="button" data-color="#7b4bb7" style="--color:#7b4bb7" aria-label="Фиолетовая одежда" title="Фиолетовый"></button>
+          </div></fieldset>
+          <fieldset><legend>Тон лица</legend><div class="swatches" id="skinSwatches">
+            <button type="button" data-color="#f0c39c" style="--color:#f0c39c"></button>
+            <button type="button" data-color="#d9a77f" style="--color:#d9a77f" class="selected"></button>
+            <button type="button" data-color="#ae7656" style="--color:#ae7656"></button>
+            <button type="button" data-color="#754a37" style="--color:#754a37"></button>
+          </div></fieldset>
+          <fieldset><legend>Цвет волос</legend><div class="swatches" id="hairSwatches">
+            <button type="button" data-color="#34261f" style="--color:#34261f" class="selected"></button>
+            <button type="button" data-color="#b57a3b" style="--color:#b57a3b"></button>
+            <button type="button" data-color="#d8c2a0" style="--color:#d8c2a0"></button>
+            <button type="button" data-color="#151515" style="--color:#151515"></button>
+          </div></fieldset>
+          <fieldset><legend>Причёска</legend><div class="choice-row" id="hairStyles">
+            <button type="button" data-style="hair-wave" class="selected">Волна</button>
+            <button type="button" data-style="hair-bob">Каре</button>
+            <button type="button" data-style="hair-bun">Пучок</button>
+            <button type="button" data-style="hair-short">Короткая</button>
+          </div></fieldset>
+          <fieldset><legend>Лицо</legend><div class="choice-row" id="faceStyles">
+            <button type="button" data-style="face-smile" class="selected">Улыбка</button>
+            <button type="button" data-style="face-calm">Спокойное</button>
+            <button type="button" data-style="face-freckles">Веснушки</button>
+          </div></fieldset>
+          <button id="saveAvatar" class="primary" value="default">Сохранить анкету</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="coinTossDialog" class="coin-toss-dialog" aria-labelledby="coinTossTitle">
+    <section class="coin-toss-card">
+      <span class="eyebrow">Розыгрыш первого хода</span>
+      <h2 id="coinTossTitle">Подбрасываем монетку</h2>
+      <div class="coin-toss-stage" aria-hidden="true">
+        <div class="toss-coin" id="coinTossCoin">
+          <div class="coin-face coin-heads"><i>🦅</i><b>ОРЁЛ</b></div>
+          <div class="coin-face coin-tails"><i>✦</i><b>РЕШКА</b></div>
+        </div>
+        <i class="coin-shadow"></i>
+      </div>
+      <p id="coinTossStatus" aria-live="assertive">Монетка взлетает…</p>
+      <button class="primary coin-toss-start hidden" id="coinTossStart">Начать игру</button>
+      <small>Орёл — чёрные фигуры · Решка — белые фигуры</small>
+    </section>
+  </dialog>
+
+  <dialog id="gameDialog" class="game-dialog">
+    <div class="game-shell">
+      <header class="game-header">
+        <button id="leaveGame" class="back">← В клуб</button>
+        <div><span class="eyebrow">Стол <b id="gameTableNumber">05</b></span><h2 id="checkersGameTitle">Русские шашки</h2></div>
+        <button id="soundButton" class="sound" aria-label="Включить или выключить звук">Звук: вкл.</button>
+      </header>
+      <div class="game-layout">
+        <section class="match-card opponent">
+          <div class="match-avatar bot-face" id="gameOpponentAvatar">М</div><div><b id="gameOpponentName">Старый Мастер</b><span id="gameOpponentMeta">Бот · 1120</span></div>
+          <strong id="botCount">12</strong>
+        </section>
+        <aside class="difficulty-panel">
+          <header><span class="eyebrow">Сила соперника</span><h3>Уровень бота</h3></header>
+          <div class="difficulty-options" id="difficultyOptions">
+            <button data-level="A1"><b>А1</b><span>Очень лёгкий</span></button>
+            <button data-level="A2"><b>А2</b><span>Лёгкий</span></button>
+            <button data-level="B1" class="selected"><b>Б1</b><span>Средний</span></button>
+            <button data-level="B2"><b>Б2</b><span>Выше среднего</span></button>
+            <button data-level="V1"><b>В1</b><span>Сложный</span></button>
+            <button data-level="V2"><b>В2</b><span>Продвинутый</span></button>
+          </div>
+          <p id="difficultyDescription">Бот оценивает материал и развитие шашек.</p>
+        </aside>
+        <section class="board-wrap">
+          <div class="turn-line"><span id="turnText">Ваш ход</span><div class="timer"><i id="timerFill"></i><b id="timer">1:00</b></div></div>
+          <div class="board-frame" aria-label="Шашечная доска с координатами">
+            <div class="board-files board-files-top" aria-hidden="true"><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span></div>
+            <div class="board-ranks board-ranks-left" aria-hidden="true"><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span></div>
+            <div class="board" id="board" role="grid" aria-label="Шашечная доска"></div>
+            <div class="board-ranks board-ranks-right" aria-hidden="true"><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span></div>
+            <div class="board-files board-files-bottom" aria-hidden="true"><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span></div>
+          </div>
+          <p class="game-tip" id="gameTip">Вы играете белыми. Взятие обязательно.</p>
+        </section>
+        <section class="match-card self">
+          <div class="match-avatar" id="gameAvatar">Г</div><div><b id="gamePlayerName">Гость</b><span>Вы · <i id="gameRating">1000</i></span></div>
+          <strong id="playerCount">12</strong>
+        </section>
+        <aside class="move-history">
+          <header><div><span class="eyebrow">Протокол партии</span><h3>История ходов</h3></div><b id="moveCount">0</b></header>
+          <div class="move-history-head"><span>№</span><span>Игрок и ход</span><span>Время</span></div>
+          <div class="move-history-list" id="moveHistory"><p class="empty-moves">Ходы появятся здесь</p></div>
+        </aside>
+        <aside class="game-chat">
+          <h3>Чат за столом</h3><div id="gameMessages"><p class="system">Вы сели за стол.</p></div>
+          <form id="gameChatForm"><input id="gameChatInput" maxlength="120" placeholder="Сообщение…"><button>↗</button></form>
+        </aside>
+      </div>
+      <section class="result-overlay hidden" id="resultOverlay" aria-live="assertive" aria-labelledby="resultTitle">
+        <div class="result-card">
+          <div class="result-visual trophy-scene" aria-hidden="true">
+            <span class="confetti c1"></span><span class="confetti c2"></span><span class="confetti c3"></span><span class="confetti c4"></span>
+            <span class="confetti c5"></span><span class="confetti c6"></span><span class="confetti c7"></span><span class="confetti c8"></span>
+            <div class="trophy"><i class="cup"></i><i class="stem"></i><i class="base"></i><b>1</b></div>
+          </div>
+          <div class="result-visual heart-scene" aria-hidden="true">
+            <div class="heart-piece heart-left">♥</div><div class="heart-piece heart-right">♥</div><i class="heart-crack"></i>
+          </div>
+          <span class="eyebrow" id="resultEyebrow">Партия окончена</span>
+          <h2 id="resultTitle">Вы победили!</h2>
+          <p id="resultMessage">Отличная партия. Ваш рейтинг вырос.</p>
+          <div class="result-rating"><span>Изменение рейтинга</span><b id="resultDelta">+18</b></div>
+          <div class="result-actions">
+            <button class="primary" id="replayButton">Сыграть ещё раз</button>
+            <button class="result-secondary" id="resultExitButton">Вернуться в клуб</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </dialog>
+
+  <dialog id="gameMenuDialog" class="game-menu-dialog">
+    <section class="wood-menu" aria-labelledby="gameMenuTitle">
+      <button class="wood-menu-close" id="closeGameMenu" aria-label="Вернуться в клуб">×</button>
+      <span class="eyebrow">Игровой стол <b id="menuTableNumber">01</b></span>
+      <h2 id="gameMenuTitle">Выберите игру</h2>
+      <p class="selected-opponent-label" id="selectedOpponentLabel">Соперник: Старый Мастер</p>
+      <div class="wood-menu-list">
+        <button data-club-game="checkers">Шашки</button>
+        <button data-club-game="giveaway">Поддавки</button>
+        <button data-club-game="corners">Уголки</button>
+        <button data-club-game="chess">Шахматы</button>
+        <button data-club-game="domino">Домино</button>
+        <button data-club-game="fives">Домино «Пятёрочки»</button>
+      </div>
+    </section>
+  </dialog>
+
+  <dialog id="arcadeDialog" class="arcade-dialog">
+    <section class="arcade-shell">
+      <header class="arcade-header">
+        <button id="arcadeBackToMenu" class="back">← Выбор игры</button>
+        <div><span class="eyebrow">Стол <b id="arcadeTableNumber">01</b></span><h2 id="arcadeTitle">Игра</h2></div>
+        <button id="arcadeExit" class="sound">В клуб</button>
+      </header>
+      <div class="arcade-scorebar">
+        <div><span id="arcadePlayerLabel">Вы</span><b id="arcadePlayerScore">0</b></div>
+        <p id="arcadeStatus" aria-live="polite">Ваш ход</p>
+        <div><span id="arcadeBotLabel">Старый Мастер</span><b id="arcadeBotScore">0</b></div>
+      </div>
+      <main class="arcade-stage">
+        <div id="arcadeBoard" class="arcade-board" aria-label="Игровое поле"></div>
+        <div class="arcade-side-column">
+          <aside class="arcade-sidebar">
+            <h3 id="arcadeRulesTitle">Правила</h3>
+            <p id="arcadeRules"></p>
+            <section class="arcade-difficulty">
+              <span class="eyebrow">Сила соперника</span>
+              <h3>Уровень бота</h3>
+              <div class="difficulty-options" id="arcadeDifficultyOptions">
+                <button data-level="A1"><b>А1</b><span>Очень лёгкий</span></button>
+                <button data-level="A2"><b>А2</b><span>Лёгкий</span></button>
+                <button data-level="B1"><b>Б1</b><span>Средний</span></button>
+                <button data-level="B2"><b>Б2</b><span>Выше среднего</span></button>
+                <button data-level="V1"><b>В1</b><span>Сложный</span></button>
+                <button data-level="V2"><b>В2</b><span>Продвинутый</span></button>
+              </div>
+              <p id="arcadeDifficultyDescription"></p>
+            </section>
+            <div id="arcadeInfo" class="arcade-info"></div>
+            <div id="arcadeActions" class="arcade-actions"></div>
+          </aside>
+          <aside class="arcade-chat" aria-labelledby="arcadeChatTitle">
+            <h3 id="arcadeChatTitle">Чат партии</h3>
+            <div class="arcade-chat-messages" id="arcadeChatMessages"><p class="system">Ожидаем начала партии.</p></div>
+            <form id="arcadeChatForm">
+              <input id="arcadeChatInput" maxlength="120" placeholder="Сообщение сопернику…" autocomplete="off">
+              <button aria-label="Отправить сообщение">↗</button>
+            </form>
+          </aside>
+          <div id="arcadeMarketSlot" class="arcade-market-slot hidden"></div>
+        </div>
+      </main>
+      <section class="result-overlay hidden" id="arcadeResultOverlay" aria-live="assertive" aria-labelledby="arcadeResultTitle">
+        <div class="result-card">
+          <div class="result-visual trophy-scene" aria-hidden="true">
+            <span class="confetti c1"></span><span class="confetti c2"></span><span class="confetti c3"></span><span class="confetti c4"></span>
+            <span class="confetti c5"></span><span class="confetti c6"></span><span class="confetti c7"></span><span class="confetti c8"></span>
+            <div class="trophy"><i class="cup"></i><i class="stem"></i><i class="base"></i><b>1</b></div>
+          </div>
+          <div class="result-visual heart-scene" aria-hidden="true">
+            <div class="heart-piece heart-left">♥</div><div class="heart-piece heart-right">♥</div><i class="heart-crack"></i>
+          </div>
+          <div class="result-visual handshake-scene" aria-hidden="true">
+            <span class="handshake-hand handshake-left">🫱</span>
+            <span class="handshake-hand handshake-right">🫲</span>
+            <i class="handshake-line line-one"></i>
+            <i class="handshake-line line-two"></i>
+            <i class="handshake-line line-three"></i>
+          </div>
+          <span class="eyebrow" id="arcadeResultEyebrow">Шахматная партия окончена</span>
+          <h2 id="arcadeResultTitle">Вы победили!</h2>
+          <p id="arcadeResultMessage">Мат поставлен. Отличная партия!</p>
+          <div class="result-actions">
+            <button class="primary" id="arcadeReplayButton">Реванш</button>
+            <button class="result-secondary" id="arcadeResultMenuButton">Выйти в меню</button>
+          </div>
+        </div>
+      </section>
+    </section>
+  </dialog>
+
+  <div class="toast" id="toast"></div>
+  <script src="game.js"></script>
+  <script src="arcade.js"></script>
+</body>
+</html>

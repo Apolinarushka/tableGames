@@ -1,0 +1,243 @@
+/*
+ * Anatomical detail layer.
+ * Keeps the stylised club look while separating shoulders, elbows, wrists,
+ * hips, knees, ankles and feet into readable forms.
+ */
+
+/* Main walking character: shaped shoulders, waist and hip line. */
+.player .character .body {
+  border-radius: 13px 13px 8px 8px;
+  background:
+    linear-gradient(105deg, transparent 0 17%, #ffffff18 18% 21%, transparent 22% 78%, #0002 79%),
+    linear-gradient(180deg, color-mix(in srgb, var(--clothes), white 9%), var(--clothes) 48%, color-mix(in srgb, var(--clothes), black 12%));
+  clip-path: polygon(9% 3%, 28% 0, 50% 5%, 72% 0, 91% 3%, 100% 37%, 88% 100%, 12% 100%, 0 37%);
+}
+
+.player .character .body::before {
+  width: 14px;
+  height: 6px;
+  left: 10px;
+  border-color: #f3ead466;
+  background: #0000000c;
+}
+
+.player .character .body::after {
+  left: 5px;
+  top: 35px;
+  width: 28px;
+  height: 5px;
+  border-radius: 4px;
+  background:
+    linear-gradient(90deg, #251d18 0 13%, #d9bb6c 14% 22%, #251d18 23% 77%, #d9bb6c 78% 86%, #251d18 87%);
+  box-shadow: 0 3px 0 #0002;
+}
+
+/* Arms include a rounded shoulder, articulated elbow, cuff and hand. */
+.player .character .arm {
+  width: 11px;
+  height: 40px;
+  border-radius: 7px 7px 5px 5px;
+  background:
+    radial-gradient(circle at 50% 55%, #ffffff26 0 2px, transparent 2.5px),
+    linear-gradient(90deg, #0002, transparent 45%, #fff2),
+    var(--clothes);
+  box-shadow:
+    inset 0 -8px color-mix(in srgb, var(--clothes), black 8%),
+    0 0 0 1px #1d171126;
+}
+
+.player .character .arm::before {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 20px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid #ffffff28;
+  background: color-mix(in srgb, var(--clothes), black 7%);
+}
+
+.player .character .arm::after {
+  bottom: -7px;
+  width: 11px;
+  height: 13px;
+  border-radius: 45% 45% 58% 58%;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 2px, #6c3f2a26 2px 3px),
+    var(--skin);
+  box-shadow:
+    inset 0 2px #ffffff24,
+    0 -2px 0 color-mix(in srgb, var(--clothes), white 18%);
+}
+
+/* Long legs taper from thigh to knee; the lower section shows shin and ankle. */
+.player .character .leg {
+  width: 12px;
+  border-radius: 6px 6px 5px 5px;
+  background:
+    linear-gradient(100deg, #14191a, #3e484a 44%, #242c2e 70%, #111617);
+  box-shadow: inset 0 -4px #151b1c;
+}
+
+.player .character .leg::before {
+  left: 1px;
+  top: 24px;
+  width: 10px;
+  height: 33px;
+  border-radius: 50% 50% 4px 4px;
+  background:
+    radial-gradient(ellipse at 50% 5%, #4b5759 0 3px, transparent 3.5px),
+    linear-gradient(90deg, #14191a, #343f41 45%, #1b2224);
+  box-shadow:
+    inset 0 -5px #111718,
+    0 -1px 0 #59636555;
+}
+
+.player .character .leg::after {
+  top: 53px;
+  width: 19px;
+  height: 9px;
+  border: 1px solid #0c1010;
+  border-radius: 7px 11px 3px 3px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 3px, #d9e1dd66 3px 4px),
+    linear-gradient(#30393b, #111617 65%);
+  box-shadow:
+    inset 0 2px #ffffff24,
+    0 2px 2px #0005;
+}
+
+/* Seated silhouettes: clothing seams and a clearer shoulder-to-wrist chain. */
+.table .npc-body {
+  background:
+    linear-gradient(105deg, #0002 0 16%, transparent 17% 73%, #ffffff1f 74% 78%, transparent 79%),
+    linear-gradient(180deg, color-mix(in srgb, var(--npc-clothes), white 8%), var(--npc-clothes) 55%, color-mix(in srgb, var(--npc-clothes), black 12%));
+  box-shadow:
+    inset 0 -5px #00000014,
+    0 0 0 1px #2b1e1830;
+}
+
+.table .npc-body::after {
+  background:
+    linear-gradient(180deg, #ffffff14, transparent 35%),
+    color-mix(in srgb, var(--npc-clothes), black 12%);
+  box-shadow: inset 0 -2px #0002;
+}
+
+.table .npc-arm {
+  height: 9px;
+  background:
+    linear-gradient(180deg, #ffffff20, transparent 38%),
+    var(--npc-clothes);
+  box-shadow: inset 0 -2px color-mix(in srgb, var(--npc-clothes), black 12%);
+}
+
+.table .npc-arm::after {
+  border: 1px solid #21171020;
+  background:
+    radial-gradient(circle at 50% 82%, #ffffff2b 0 2px, transparent 2.5px),
+    linear-gradient(90deg, #0002, transparent 55%),
+    var(--npc-clothes);
+  box-shadow: inset 0 -5px color-mix(in srgb, var(--npc-clothes), black 8%);
+}
+
+.table .npc-hand {
+  background:
+    repeating-linear-gradient(90deg, transparent 0 2px, #6b3e2928 2px 3px),
+    var(--npc-skin);
+  box-shadow: inset 0 2px #ffffff2b;
+}
+
+.table .npc-hand::after {
+  background:
+    linear-gradient(180deg, #ffffff22, transparent 45%),
+    color-mix(in srgb, var(--npc-skin), black 5%);
+}
+
+/* Thigh volume, visible kneecap, tapered shin, ankle and laced shoe. */
+.table .npc-leg {
+  height: 13px;
+  background:
+    linear-gradient(180deg, #4b5659 0, #30393d 48%, #20282b 100%);
+  box-shadow:
+    inset -4px 0 #11171933,
+    0 5px 0 -2px #222b2f;
+}
+
+.table .npc-leg::after {
+  width: 11px;
+  border-radius: 55% 55% 4px 4px;
+  background:
+    radial-gradient(ellipse at 50% 6%, #566164 0 3px, transparent 3.5px),
+    linear-gradient(90deg, #171d1f, #333e41 48%, #1d2527);
+  box-shadow:
+    inset 0 -5px #111718,
+    -6px 1px 0 -2px #1e272a;
+}
+
+.table .facing-left .npc-leg::after {
+  box-shadow:
+    inset 0 -5px #111718,
+    6px 1px 0 -2px #1e272a;
+}
+
+.table .npc-shoe {
+  height: 8px;
+  border: 1px solid #0b0e0f;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 3px, #dce3df66 3px 4px),
+    linear-gradient(#343d3f, #111516 68%);
+  box-shadow:
+    inset 0 2px #ffffff25,
+    -6px 2px 0 -2px #111415,
+    0 2px 2px #0005;
+}
+
+/* A small warm/cool accent makes the six-colour club palette read clearly. */
+.npc-a .npc-body { border-color: #a982da; }
+.npc-b .npc-body { border-color: #74c995; }
+.npc-c .npc-body { border-color: #7fccee; }
+.npc-d .npc-body { border-color: #f1aa65; }
+.npc.bot .npc-body { border-color: #f2d56d; }
+
+.table .npc[data-character-id] {
+  cursor: pointer;
+  pointer-events: auto !important;
+}
+
+.table .npc-name {
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  top: -27px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 92px;
+  padding: 3px 6px;
+  overflow: hidden;
+  border: 1px solid #ffffff1c;
+  border-radius: 6px;
+  color: #f0e7d3;
+  background: #0d1712e8;
+  box-shadow: 0 3px 8px #0007;
+  font: 700 8px Inter, "Segoe UI", sans-serif;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.table .npc[data-character-id]:hover .npc-name {
+  color: #f2d48c;
+  border-color: #d7ad6266;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player.walking .character .arm,
+  .player.walking .character .leg,
+  .player.walking .character .leg::before,
+  .player.walking .character .leg::after {
+    animation-duration: .01ms;
+  }
+}

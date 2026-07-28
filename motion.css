@@ -1,0 +1,36 @@
+/* Main character arm motion, loaded after all scene overrides. */
+.player .character .arm {
+  transform-origin: 50% 3px;
+}
+
+.player.walking .character .arm.a1 {
+  animation: main-arm-left-swing .56s ease-in-out infinite;
+}
+
+.player.walking .character .arm.a2 {
+  animation: main-arm-right-swing .56s ease-in-out infinite;
+}
+
+@keyframes main-arm-left-swing {
+  0%, 100% {
+    transform: rotate(24deg) translateY(-1px);
+  }
+  50% {
+    transform: rotate(-23deg) translateY(1px);
+  }
+}
+
+@keyframes main-arm-right-swing {
+  0%, 100% {
+    transform: rotate(-23deg) translateY(1px);
+  }
+  50% {
+    transform: rotate(24deg) translateY(-1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player.walking .character .arm {
+    animation-duration: .01ms;
+  }
+}

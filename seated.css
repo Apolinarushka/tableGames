@@ -1,0 +1,431 @@
+/*
+ * Side-profile seated players.
+ * This final layer keeps the lobby's existing character options while giving
+ * every seated figure an upright torso, table-height forearms, right-angle
+ * knees and feet planted on the floor.
+ */
+
+.table .npc {
+  top: -13px;
+  width: 68px;
+  height: 113px;
+  transform: none;
+  transform-origin: 50% 100%;
+  filter: drop-shadow(0 4px 3px #120a0666);
+}
+
+.table .npc-a,
+.table .npc-c {
+  left: -24px;
+}
+
+.table .npc-b,
+.table .npc-d,
+.table .npc.bot {
+  right: -24px;
+  left: auto;
+}
+
+/* Upright side silhouette: head, neck, chest, waist and seated hip. */
+.table .npc-head {
+  z-index: 7;
+  top: 0;
+  left: 19px;
+  width: 23px;
+  height: 27px;
+  border: 1px solid #633b2a33;
+  border-radius: 54% 46% 48% 51%;
+  background: var(--npc-skin);
+  box-shadow:
+    inset 2px -2px #6c3f2a1f,
+    0 1px 0 #fff2;
+}
+
+.table .facing-left .npc-head {
+  left: 26px;
+  border-radius: 46% 54% 51% 48%;
+}
+
+.table .npc-head::before {
+  width: 2.5px;
+  height: 2.5px;
+  right: 3px;
+  top: 9px;
+  background: #241b18;
+  box-shadow:
+    -4px -4px 0 -1px var(--npc-hair),
+    1px 8px 0 -1px #8a483e;
+}
+
+.table .facing-left .npc-head::before {
+  right: auto;
+  left: 3px;
+  box-shadow:
+    4px -4px 0 -1px var(--npc-hair),
+    -1px 8px 0 -1px #8a483e;
+}
+
+.table .npc-head::after {
+  width: 6px;
+  height: 5px;
+  right: -4px;
+  top: 12px;
+  border: 1px solid #633b2a22;
+  border-left: 0;
+  border-radius: 30% 65% 55% 30%;
+  background: var(--npc-skin);
+}
+
+.table .facing-left .npc-head::after {
+  right: auto;
+  left: -4px;
+  border-right: 0;
+  border-left: 1px solid #633b2a22;
+  border-radius: 65% 30% 30% 55%;
+}
+
+.table .npc-smile .npc-head {
+  background:
+    radial-gradient(circle at 88% 72%, #8b4a42 0 1.1px, transparent 1.5px),
+    var(--npc-skin);
+}
+
+.table .facing-left.npc-smile .npc-head {
+  background:
+    radial-gradient(circle at 12% 72%, #8b4a42 0 1.1px, transparent 1.5px),
+    var(--npc-skin);
+}
+
+.table .npc-freckles .npc-head {
+  background:
+    radial-gradient(circle at 82% 55%, #8f5139 0 1px, transparent 1.3px),
+    radial-gradient(circle at 71% 61%, #8f5139 0 1px, transparent 1.3px),
+    var(--npc-skin);
+}
+
+.table .npc-hair {
+  z-index: 8;
+  top: -3px;
+  left: 16px;
+  width: 28px;
+  height: 15px;
+  border-radius: 65% 48% 22% 28%;
+  background: var(--npc-hair);
+}
+
+.table .facing-left .npc-hair {
+  left: 24px;
+  transform: scaleX(-1);
+}
+
+.table .npc-hair-wave .npc-hair {
+  box-shadow:
+    -3px 7px 0 -1px var(--npc-hair),
+    5px 4px 0 -2px var(--npc-hair);
+}
+
+.table .npc-hair-bob .npc-hair {
+  left: 22px;
+  width: 30px;
+  height: 28px;
+  border-radius: 58% 55% 42% 42%;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 76% 76%, 72% 28%, 27% 28%, 22% 79%, 0 100%);
+}
+
+.table .npc-hair-bun .npc-hair::after {
+  width: 11px;
+  height: 11px;
+  left: 7px;
+  top: -7px;
+}
+
+.table .npc-hair-short .npc-hair {
+  height: 11px;
+}
+
+.table .npc-body {
+  z-index: 4;
+  top: 25px;
+  left: 16px;
+  width: 29px;
+  height: 45px;
+  border: 1px solid #ffffff16;
+  border-radius: 9px 12px 8px 10px;
+  background:
+    linear-gradient(90deg, #0002, transparent 48%, #fff1),
+    var(--npc-clothes);
+  transform: rotate(-3deg);
+  transform-origin: 50% 100%;
+}
+
+.table .facing-left .npc-body {
+  left: 23px;
+  border-radius: 12px 9px 10px 8px;
+  transform: rotate(3deg);
+}
+
+.table .npc-body::before {
+  width: 11px;
+  height: 5px;
+  left: 9px;
+  top: 0;
+  border-radius: 0 0 7px 7px;
+  background: color-mix(in srgb, var(--npc-clothes), white 18%);
+  box-shadow: none;
+}
+
+.table .npc-body::after {
+  width: 25px;
+  height: 14px;
+  left: 2px;
+  top: 34px;
+  border: 0;
+  border-radius: 45% 55% 40% 35%;
+  background: color-mix(in srgb, var(--npc-clothes), black 9%);
+}
+
+/* Upper arm falls naturally from the shoulder; forearm and wrist rest on the table. */
+.table .npc-arm {
+  z-index: 6;
+  top: 53px;
+  left: 36px;
+  width: 29px;
+  height: 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--npc-clothes), white 2%);
+  transform: rotate(-3deg);
+  transform-origin: left center;
+}
+
+.table .npc-arm::after {
+  width: 9px;
+  height: 27px;
+  left: -6px;
+  top: -20px;
+  border-radius: 6px;
+  background: var(--npc-clothes);
+  transform: rotate(-27deg);
+  transform-origin: 50% 100%;
+}
+
+.table .facing-left .npc-arm {
+  left: 3px;
+  transform: rotate(3deg);
+  transform-origin: right center;
+}
+
+.table .facing-left .npc-arm::after {
+  left: 25px;
+  transform: rotate(27deg);
+}
+
+.table .npc-hand {
+  z-index: 7;
+  top: 51px;
+  left: 59px;
+  width: 10px;
+  height: 8px;
+  border-radius: 55% 70% 55% 45%;
+  background: var(--npc-skin);
+}
+
+.table .facing-left .npc-hand {
+  left: -1px;
+  border-radius: 70% 55% 45% 55%;
+}
+
+.table .npc-hand::after {
+  width: 16px;
+  height: 5px;
+  left: -14px;
+  top: 2px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--npc-skin), #000 6%);
+}
+
+.table .facing-left .npc-hand::after {
+  left: 8px;
+}
+
+/* Seated legs: horizontal thigh, 90-degree knee, vertical shin and flat foot. */
+.table .npc-leg {
+  z-index: 3;
+  top: 64px;
+  left: 23px;
+  width: 30px;
+  height: 12px;
+  border-radius: 7px 8px 7px 5px;
+  background: #30393d;
+  transform: rotate(4deg);
+  transform-origin: left center;
+  box-shadow: 0 5px 0 -2px #222b2f;
+}
+
+.table .npc-leg::after {
+  width: 10px;
+  height: 35px;
+  left: 20px;
+  top: 7px;
+  border-radius: 6px 6px 4px 4px;
+  background: #252e32;
+  transform: rotate(-3deg);
+  transform-origin: 50% 0;
+  box-shadow: -6px 1px 0 -2px #1e272a;
+}
+
+.table .facing-left .npc-leg {
+  left: 15px;
+  transform: rotate(-4deg);
+  transform-origin: right center;
+}
+
+.table .facing-left .npc-leg::after {
+  left: 0;
+  transform: rotate(3deg);
+  box-shadow: 6px 1px 0 -2px #1e272a;
+}
+
+.table .npc-shoe {
+  z-index: 5;
+  top: 103px;
+  left: 43px;
+  width: 18px;
+  height: 7px;
+  border-radius: 8px 10px 3px 3px;
+  background: #161819;
+  box-shadow:
+    inset 0 2px #ffffff15,
+    -6px 2px 0 -2px #111415;
+}
+
+.table .facing-left .npc-shoe {
+  left: 7px;
+  transform: scaleX(-1);
+}
+
+/* Side-view chairs sized to the seated body, with a 10–12 degree backrest. */
+.table .chair {
+  z-index: 1;
+  top: 55px;
+  width: 46px;
+  height: 11px;
+  border: 2px solid #24140d;
+  border-radius: 5px 5px 3px 3px;
+  background: linear-gradient(#805334, #4a2d1d);
+  box-shadow: inset 0 2px #b47c4b55;
+}
+
+.table .chair.c1 {
+  left: -25px;
+}
+
+.table .chair.c2 {
+  right: -25px;
+  left: auto;
+}
+
+.table .chair::before {
+  z-index: -1;
+  top: -39px;
+  left: 1px;
+  width: 8px;
+  height: 44px;
+  border: 2px solid #24140d;
+  border-radius: 5px 5px 2px 2px;
+  background: linear-gradient(90deg, #4a2d1d, #805334);
+  box-shadow: none;
+  transform: rotate(-11deg);
+  transform-origin: 50% 100%;
+}
+
+.table .chair.c2::before {
+  left: 33px;
+  transform: rotate(11deg);
+}
+
+.table .chair::after {
+  top: 8px;
+  left: 6px;
+  width: 5px;
+  height: 39px;
+  border-radius: 0 0 2px 2px;
+  background: #3a2317;
+  box-shadow: 28px 0 #3a2317;
+}
+
+.table:hover .npc-arm,
+.table:hover .facing-left .npc-arm {
+  animation: seated-think 1.7s ease-in-out infinite alternate;
+}
+
+@keyframes seated-think {
+  to {
+    transform: translateY(-1px);
+  }
+}
+
+@media (max-width: 850px) {
+  .table .npc {
+    transform: scale(.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .table:hover .npc-arm {
+    animation: none;
+  }
+}
+
+/* Lobby tables are seen straight from the side, without a board on top. */
+.club-room .table-top,
+.room .table-top,
+.table .table-top {
+  z-index: 5;
+  top: 40px;
+  left: 23px;
+  width: 94px;
+  height: 13px;
+  border: 3px solid #2b190f;
+  border-radius: 4px;
+  background:
+    linear-gradient(180deg, #a46c3f 0 24%, #704326 25% 72%, #432719 73%),
+    #704326;
+  transform: none;
+  box-shadow:
+    inset 0 2px #d59a62aa,
+    inset 0 -2px #2a170d88,
+    0 4px 5px #140a0666;
+}
+
+.table .table-top i,
+.table .table-top::after {
+  display: none;
+}
+
+/* The tabletop is about one third of the chair's seat height above the seat. */
+.table .chair {
+  top: 56px;
+}
+
+.table::before {
+  z-index: 5;
+  top: 50px;
+  left: 26px;
+  width: 88px;
+  height: 7px;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(#684027, #382116);
+}
+
+.table::after {
+  z-index: 2;
+  top: 51px;
+  left: 62px;
+  width: 16px;
+  height: 49px;
+  border-radius: 1px 1px 5px 5px;
+  background: linear-gradient(90deg, #2b190f, #754729 48%, #29170e);
+  box-shadow:
+    inset 2px 0 #a86c3c55,
+    7px 5px 5px #0005;
+}

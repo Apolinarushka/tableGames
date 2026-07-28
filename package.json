@@ -1,0 +1,9 @@
+{
+  "name": "table-games-club",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Браузерный клуб настольных игр «Тихий ход»",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
