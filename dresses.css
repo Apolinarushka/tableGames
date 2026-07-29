@@ -1,0 +1,166 @@
+/*
+ * Floor-length dresses for the women in the club.
+ * The dotted pattern is intentionally darker than the main fabric.
+ */
+
+.table .npc-a {
+  --dress-base: #b9657e;
+  --dress-dot: #71394c;
+  --npc-clothes: var(--dress-base) !important;
+}
+
+.table .npc-b {
+  --dress-base: #6599b8;
+  --dress-dot: #315d78;
+  --npc-clothes: var(--dress-base) !important;
+}
+
+.table .npc-d {
+  --dress-base: #65a995;
+  --dress-dot: #326b5d;
+  --npc-clothes: var(--dress-base) !important;
+}
+
+/* Fitted upper part and a straight skirt that hides the seated legs. */
+.table .npc-a .npc-body,
+.table .npc-b .npc-body,
+.table .npc-d .npc-body {
+  width: 25px;
+  border-color: color-mix(in srgb, var(--dress-base), white 22%);
+  border-radius: 10px 11px 7px 8px;
+  background:
+    linear-gradient(180deg, transparent 0 51%, var(--dress-dot) 52% 55%, transparent 56%),
+    linear-gradient(90deg, #00000016, transparent 45%, #ffffff18),
+    radial-gradient(circle, var(--dress-dot) 0 1.15px, transparent 1.35px) 1px 1px / 7px 7px,
+    var(--dress-base);
+  box-shadow: inset 0 -5px color-mix(in srgb, var(--dress-base), black 8%);
+}
+
+.table .npc-a .npc-body::before,
+.table .npc-b .npc-body::before,
+.table .npc-d .npc-body::before {
+  z-index: -1;
+  top: 0;
+  left: -2px;
+  width: 29px;
+  height: 21px;
+  border-radius: 10px 12px 7px 7px;
+  background:
+    linear-gradient(90deg, #00000012, transparent 55%, #ffffff13),
+    radial-gradient(circle, var(--dress-dot) 0 1px, transparent 1.2px) 1px 1px / 7px 7px,
+    var(--dress-base);
+  box-shadow: none;
+}
+
+.table .npc-a .npc-body::after,
+.table .npc-b .npc-body::after,
+.table .npc-d .npc-body::after {
+  z-index: -1;
+  top: 31px;
+  left: 0;
+  width: 54px;
+  height: 59px;
+  border: 1px solid color-mix(in srgb, var(--dress-base), black 17%);
+  border-radius: 3px 6px 7px 7px;
+  clip-path: polygon(0 0, 62% 0, 100% 15%, 100% 100%, 68% 100%, 68% 33%, 0 29%);
+  background:
+    linear-gradient(90deg, #00000015, transparent 48%, #ffffff16),
+    radial-gradient(circle, var(--dress-dot) 0 1.1px, transparent 1.3px) 1px 1px / 7px 7px,
+    var(--dress-base);
+  box-shadow:
+    inset 4px 0 #0000000d,
+    inset -3px 0 #ffffff0d,
+    0 3px 4px #160d0a55;
+}
+
+.table .npc-a .npc-body { left: 18px; }
+
+.table .npc-b .npc-body,
+.table .npc-d .npc-body { left: 25px; }
+
+.table .facing-left.npc-b .npc-body::after,
+.table .facing-left.npc-d .npc-body::after {
+  left: -29px;
+  transform: scaleX(-1);
+}
+
+.table .npc-a .npc-arm,
+.table .npc-b .npc-arm,
+.table .npc-d .npc-arm,
+.table .npc-a .npc-arm::after,
+.table .npc-b .npc-arm::after,
+.table .npc-d .npc-arm::after {
+  background:
+    radial-gradient(circle, var(--dress-dot) 0 1px, transparent 1.2px) 0 0 / 7px 7px,
+    var(--dress-base);
+}
+
+.table .npc-a .npc-leg,
+.table .npc-a .npc-shoe,
+.table .npc-b .npc-leg,
+.table .npc-b .npc-shoe,
+.table .npc-d .npc-leg,
+.table .npc-d .npc-shoe {
+  display: none;
+}
+
+/* Lada walks as one long silhouette; her legs remain fully under the hem. */
+.hall-person.walker-one {
+  --dress-base: #b9657e;
+  --dress-dot: #71394c;
+  --person-clothes: var(--dress-base) !important;
+}
+
+.walker-one .hall-torso {
+  top: 34px;
+  left: 6px;
+  width: 42px;
+  height: 124px;
+  border-color: color-mix(in srgb, var(--dress-base), white 24%);
+  border-radius: 13px 13px 7px 7px;
+  clip-path: polygon(8% 5%,29% 0,50% 5%,71% 0,92% 5%,100% 23%,75% 38%,88% 48%,94% 100%,6% 100%,12% 48%,25% 38%,0 23%);
+  background:
+    linear-gradient(100deg, #0000001c, transparent 42%, #ffffff1b 65%, transparent 80%),
+    radial-gradient(circle, var(--dress-dot) 0 1.25px, transparent 1.45px) 1px 1px / 8px 8px,
+    var(--dress-base);
+  box-shadow:
+    inset 0 -8px color-mix(in srgb, var(--dress-base), black 9%),
+    0 4px 4px #100b0955;
+}
+
+.walker-one .hall-torso::before {
+  left: 9px;
+  right: 9px;
+  top: 27px;
+  height: 1px;
+  background: color-mix(in srgb, var(--dress-base), white 22%);
+  box-shadow: 0 82px color-mix(in srgb, var(--dress-base), black 12%);
+}
+
+.walker-one .hall-torso::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  left: 4px;
+  height: 7px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--dress-base), black 10%);
+  opacity: .65;
+}
+
+.walker-one .hall-arm,
+.walker-one .hall-arm > i {
+  background:
+    radial-gradient(circle, var(--dress-dot) 0 1px, transparent 1.2px) 0 0 / 8px 8px,
+    var(--dress-base);
+}
+
+.walker-one .hall-leg {
+  display: none;
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .walker-one { animation: none; }
+}

@@ -241,3 +241,386 @@
     animation-duration: .01ms;
   }
 }
+
+/* Full-height hall figures follow the 7.5-head construction from the reference. */
+.hall-person {
+  --person-skin: #d9a77f;
+  --person-hair: #34261f;
+  --person-clothes: #c84a42;
+  --person-trousers: #30383d;
+  position: absolute;
+  z-index: 7;
+  width: 54px;
+  height: 158px;
+  pointer-events: none;
+  filter: drop-shadow(0 5px 4px #090d0b66);
+}
+
+.walker-one {
+  left: 11%;
+  top: 55%;
+  --hall-travel: 31vw;
+  animation: hall-straight-route 19s linear infinite;
+}
+
+.walker-two {
+  left: 46%;
+  top: 76%;
+  --hall-travel: 24vw;
+  animation: hall-straight-route 23s -8s linear infinite;
+}
+
+.observer-one {
+  left: 54%;
+  top: 53%;
+  transform: scale(.9);
+  transform-origin: 50% 100%;
+}
+
+.hall-silhouette {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform-origin: 50% 70%;
+}
+
+.hall-walker .hall-silhouette {
+  animation: hall-facing-direction 19s linear infinite;
+}
+
+.walker-two .hall-silhouette {
+  animation-duration: 23s;
+  animation-delay: -8s;
+}
+
+.hall-person-name {
+  position: absolute;
+  z-index: 20;
+  left: 50%;
+  top: -19px;
+  width: max-content;
+  max-width: 110px;
+  transform: translateX(-50%);
+  overflow: hidden;
+  border: 1px solid #ffffff1b;
+  border-radius: 7px;
+  padding: 4px 7px;
+  color: #f2e9d6;
+  background: #0c1611e8;
+  box-shadow: 0 4px 10px #0007;
+  font: 700 8px Inter, "Segoe UI", sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hall-head,
+.hall-hair,
+.hall-neck,
+.hall-torso,
+.hall-arm,
+.hall-leg,
+.hall-shadow {
+  position: absolute;
+  display: block;
+}
+
+.hall-head {
+  z-index: 9;
+  top: 5px;
+  left: 17px;
+  width: 21px;
+  height: 25px;
+  border: 1px solid #5c37272e;
+  border-radius: 47% 47% 52% 52%;
+  background:
+    radial-gradient(circle at 31% 48%, #271c19 0 1px, transparent 1.5px),
+    radial-gradient(circle at 69% 48%, #271c19 0 1px, transparent 1.5px),
+    radial-gradient(ellipse at 50% 74%, #8c4b43 0 2px, transparent 2.5px),
+    var(--person-skin);
+  box-shadow: inset 2px -2px #70432e20, 0 1px #fff2;
+}
+
+.hall-head::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  width: 3px;
+  height: 5px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--person-skin), #7f4b35 15%);
+}
+
+.hall-hair {
+  z-index: 10;
+  top: 1px;
+  left: 15px;
+  width: 25px;
+  height: 14px;
+  border-radius: 58% 60% 28% 24%;
+  background:
+    linear-gradient(115deg, #ffffff1b, transparent 38%),
+    var(--person-hair);
+  box-shadow: -2px 5px 0 -1px var(--person-hair);
+}
+
+.walker-one .hall-hair {
+  height: 21px;
+  border-radius: 58% 60% 44% 35%;
+  box-shadow: -4px 8px 0 -1px var(--person-hair), 4px 6px 0 -2px var(--person-hair);
+}
+
+.hall-neck {
+  z-index: 5;
+  top: 27px;
+  left: 22px;
+  width: 11px;
+  height: 10px;
+  border-radius: 0 0 5px 5px;
+  background: var(--person-skin);
+}
+
+.hall-torso {
+  z-index: 4;
+  top: 34px;
+  left: 10px;
+  width: 35px;
+  height: 54px;
+  border: 1px solid #ffffff18;
+  border-radius: 13px 13px 9px 9px;
+  clip-path: polygon(8% 5%, 30% 0, 50% 5%, 70% 0, 92% 5%, 100% 34%, 86% 100%, 14% 100%, 0 34%);
+  background:
+    linear-gradient(105deg, #0002 0 17%, transparent 18% 76%, #ffffff1b 77% 81%, transparent 82%),
+    linear-gradient(180deg, color-mix(in srgb, var(--person-clothes), white 9%), var(--person-clothes) 55%, color-mix(in srgb, var(--person-clothes), black 13%));
+  box-shadow: inset 0 -7px #00000014;
+}
+
+.hall-torso::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  top: 12px;
+  height: 1px;
+  background: #ffffff1c;
+  box-shadow: 0 34px #151c1d44;
+}
+
+/* Upper arm rotates at the shoulder; the nested forearm rotates at the elbow. */
+.hall-arm {
+  z-index: 6;
+  top: 39px;
+  width: 10px;
+  height: 35px;
+  border: 1px solid #21171022;
+  border-radius: 7px 7px 6px 6px;
+  background:
+    linear-gradient(90deg, #0002, transparent 50%, #fff2),
+    var(--person-clothes);
+  transform-origin: 50% 5px;
+}
+
+.hall-arm::before {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  left: 1px;
+  bottom: -4px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid #ffffff25;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--person-clothes), black 8%);
+}
+
+.hall-arm > i {
+  position: absolute;
+  left: 1px;
+  top: 30px;
+  width: 8px;
+  height: 34px;
+  border-radius: 6px 6px 5px 5px;
+  background:
+    linear-gradient(90deg, #0002, transparent 55%),
+    color-mix(in srgb, var(--person-clothes), white 1%);
+  transform: rotate(8deg);
+  transform-origin: 50% 4px;
+}
+
+.hall-arm > i::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  bottom: -10px;
+  width: 10px;
+  height: 13px;
+  border-radius: 48% 48% 58% 58%;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 2px, #6c3f2a24 2px 3px),
+    var(--person-skin);
+  box-shadow: inset 0 2px #ffffff25;
+}
+
+.hall-arm.arm-left { left: 6px; transform: rotate(4deg); }
+.hall-arm.arm-right { right: 6px; transform: rotate(-4deg); }
+
+/* Thigh and shin are separate segments joined by a visible kneecap. */
+.hall-leg {
+  z-index: 3;
+  top: 83px;
+  width: 14px;
+  height: 35px;
+  border-radius: 8px 8px 6px 6px;
+  background:
+    linear-gradient(100deg, #111719, var(--person-trousers) 44%, color-mix(in srgb, var(--person-trousers), black 18%));
+  transform-origin: 50% 5px;
+}
+
+.hall-leg::before {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  left: 2px;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  border: 1px solid #ffffff1b;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--person-trousers), white 8%);
+}
+
+.hall-leg > i {
+  position: absolute;
+  left: 1px;
+  top: 31px;
+  width: 12px;
+  height: 39px;
+  border-radius: 6px 6px 4px 4px;
+  background:
+    linear-gradient(90deg, #121719, color-mix(in srgb, var(--person-trousers), white 3%) 48%, #151b1d);
+  transform-origin: 50% 4px;
+}
+
+.hall-leg > i::after {
+  content: "";
+  position: absolute;
+  left: -2px;
+  bottom: -8px;
+  width: 20px;
+  height: 9px;
+  border: 1px solid #0b0e0f;
+  border-radius: 8px 12px 3px 3px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 3px, #dce3df55 3px 4px),
+    linear-gradient(#3a4345, #101415 68%);
+  box-shadow: 0 2px 2px #0006;
+}
+
+.hall-leg.leg-left { left: 13px; }
+.hall-leg.leg-right { right: 13px; }
+
+.hall-shadow {
+  z-index: 0;
+  left: 7px;
+  bottom: -5px;
+  width: 44px;
+  height: 11px;
+  border-radius: 50%;
+  background: #07100b70;
+  filter: blur(2px);
+}
+
+.hall-walker .arm-left { animation: hall-arm-forward .82s ease-in-out infinite alternate; }
+.hall-walker .arm-right { animation: hall-arm-back .82s ease-in-out infinite alternate; }
+.hall-walker .arm-left > i { animation: hall-elbow-back .82s ease-in-out infinite alternate; }
+.hall-walker .arm-right > i { animation: hall-elbow-forward .82s ease-in-out infinite alternate; }
+.hall-walker .leg-left { animation: hall-thigh-forward .82s ease-in-out infinite alternate; }
+.hall-walker .leg-right { animation: hall-thigh-back .82s ease-in-out infinite alternate; }
+.hall-walker .leg-left > i { animation: hall-knee-back .82s ease-in-out infinite alternate; }
+.hall-walker .leg-right > i { animation: hall-knee-forward .82s ease-in-out infinite alternate; }
+
+/* Observer bends both elbows and keeps a relaxed, slightly flexed knee. */
+.hall-observer .arm-left { transform: rotate(-18deg); }
+.hall-observer .arm-left > i { transform: rotate(-58deg); }
+.hall-observer .arm-right { transform: rotate(18deg); }
+.hall-observer .arm-right > i { transform: rotate(58deg); }
+.hall-observer .leg-left { transform: rotate(2deg); }
+.hall-observer .leg-left > i { transform: rotate(-5deg); }
+.hall-observer .leg-right { transform: rotate(-3deg); }
+.hall-observer .leg-right > i { transform: rotate(7deg); }
+
+/* Extra joint markers make the existing side-view seated figures read more clearly. */
+.table .npc-arm::before {
+  content: "";
+  position: absolute;
+  z-index: 8;
+  left: -5px;
+  top: -2px;
+  width: 8px;
+  height: 8px;
+  border: 1px solid #ffffff24;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--npc-clothes), black 8%);
+  box-shadow: inset 0 1px #ffffff22;
+}
+
+.table .facing-left .npc-arm::before {
+  right: -5px;
+  left: auto;
+}
+
+.table .npc-leg::before {
+  content: "";
+  position: absolute;
+  z-index: 5;
+  right: -2px;
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  border: 1px solid #ffffff1a;
+  border-radius: 50%;
+  background: #465154;
+  box-shadow: inset 0 -2px #171e20;
+}
+
+.table .facing-left .npc-leg::before {
+  right: auto;
+  left: -2px;
+}
+
+@keyframes hall-straight-route {
+  0%, 5% { transform: translateX(0); }
+  45%, 52% { transform: translateX(var(--hall-travel)); }
+  92%, 100% { transform: translateX(0); }
+}
+
+@keyframes hall-facing-direction {
+  0%, 51.9% { transform: scaleX(1); }
+  52%, 100% { transform: scaleX(-1); }
+}
+
+@keyframes hall-arm-forward { to { transform: rotate(27deg); } }
+@keyframes hall-arm-back { to { transform: rotate(-27deg); } }
+@keyframes hall-elbow-forward { to { transform: rotate(24deg); } }
+@keyframes hall-elbow-back { to { transform: rotate(-18deg); } }
+@keyframes hall-thigh-forward { to { transform: rotate(24deg); } }
+@keyframes hall-thigh-back { to { transform: rotate(-22deg); } }
+@keyframes hall-knee-forward { to { transform: rotate(12deg); } }
+@keyframes hall-knee-back { to { transform: rotate(-34deg); } }
+
+@media (max-width: 850px) {
+  .hall-person { transform: scale(.82); transform-origin: 50% 100%; }
+  .observer-one { transform: scale(.72); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hall-walker,
+  .hall-walker .hall-silhouette,
+  .hall-walker .hall-arm,
+  .hall-walker .hall-arm > i,
+  .hall-walker .hall-leg,
+  .hall-walker .hall-leg > i {
+    animation: none;
+  }
+}

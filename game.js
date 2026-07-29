@@ -2,7 +2,7 @@ const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 
 const profile = JSON.parse(localStorage.getItem("quietMoveProfile") || "null") || {
-  name: "Гость", clothes: "#c84a42", hair: "#34261f", skin: "#d9a77f",
+  name: "Гость", clothes: "#c84a42", hair: "#4a2d22", skin: "#d9a77f",
   hairStyle: "hair-wave", faceStyle: "face-smile", rating: 1000, games: []
 };
 profile.skin ||= "#d9a77f"; profile.hairStyle ||= "hair-wave"; profile.faceStyle ||= "face-smile"; profile.mustacheStyle ||= "mustache-none"; profile.botLevel ||= "B1";
@@ -26,6 +26,20 @@ const clothesColorUpgrade = {
 profile.clothes = clothesColorUpgrade[profile.clothes] || profile.clothes;
 if (!["#c84a42", "#e0782f", "#d7ad32", "#339565", "#3099cb", "#7b4bb7"].includes(profile.clothes)) {
   profile.clothes = "#c84a42";
+}
+const hairColorUpgrade = {
+  "#34261f": "#4a2d22",
+  "#442a22": "#4a2d22",
+  "#151515": "#171514",
+  "#171918": "#171514",
+  "#20201c": "#171514",
+  "#b57a3b": "#783f2b",
+  "#6b3b26": "#783f2b",
+  "#d8c2a0": "#c7ad83"
+};
+profile.hair = hairColorUpgrade[profile.hair] || profile.hair;
+if (!["#171514", "#4a2d22", "#783f2b", "#6f2535", "#c7ad83"].includes(profile.hair)) {
+  profile.hair = "#4a2d22";
 }
 let pos = { x: 50, y: 84 }, targetPos = null, arrivalCallback = null, nearTable = null, nearBulletin = false, soundOn = true, audioCtx;
 let board = [], turn = "white", selected = null, chainPiece = null, seconds = 60, timerId, gameOver = false, moveHistory = [], activeOpeningName = null, announcedOpeningName = null, announcedEndgameClass = null;
@@ -438,8 +452,17 @@ function victoryCountLabel(count) {
   const word=mod100>=11&&mod100<=14?"побед":mod10===1?"победа":mod10>=2&&mod10<=4?"победы":"побед";
   return `${count} ${word}`;
 }
+function updateWinStreakQuickButton() {
+  const current=$("#roomWinStreak"),best=$("#roomBestStreak");
+  if(!current||!best)return;
+  current.textContent=victoryCountLabel(profile.winStreak);
+  best.textContent=String(profile.bestWinStreak);
+  $("#streakQuickButton").classList.toggle("has-streak",profile.winStreak>0);
+}
 function closeWinStreakPopup() {
-  $("#winStreakPopup").classList.add("hidden");
+  const popup=$("#winStreakPopup");
+  if(popup.open)popup.close();
+  popup.classList.add("hidden");
 }
 function showWinStreakPopup(outcome,previousStreak,gameLabel) {
   const popup=$("#winStreakPopup"),track=$("#winStreakTrack");
@@ -449,7 +472,12 @@ function showWinStreakPopup(outcome,previousStreak,gameLabel) {
   ).join("");
   $("#winStreakCurrent").textContent=victoryCountLabel(profile.winStreak);
   $("#winStreakBest").textContent=victoryCountLabel(profile.bestWinStreak);
-  if(outcome==="win"){
+  if(outcome==="overview"){
+    $("#winStreakTitle").textContent="Ваша цепочка побед";
+    $("#winStreakMessage").textContent=profile.winStreak
+      ?`Сейчас у вас ${victoryCountLabel(profile.winStreak)} подряд. Продолжайте играть, чтобы превзойти личный рекорд!`
+      :"Цепочка пока не началась. Одержите победу в любой клубной игре, чтобы зажечь первое звено.";
+  }else if(outcome==="win"){
     $("#winStreakTitle").textContent=profile.winStreak>=5?"Победная серия!":"Цепочка побед";
     $("#winStreakMessage").textContent=profile.winStreak===1
       ?"Начало положено! Победите ещё раз, чтобы продолжить цепочку."
@@ -468,6 +496,7 @@ function showWinStreakPopup(outcome,previousStreak,gameLabel) {
       :"Ничья не считается поражением. Начните цепочку следующей победой!";
   }
   popup.classList.remove("hidden");
+  if(!popup.open)popup.showModal();
   requestAnimationFrame(()=>$("#winStreakContinue").focus());
 }
 function recordWinStreak(outcome,gameLabel) {
@@ -475,17 +504,21 @@ function recordWinStreak(outcome,gameLabel) {
   if(outcome==="win")profile.winStreak++;
   else if(outcome==="loss")profile.winStreak=0;
   profile.bestWinStreak=Math.max(profile.bestWinStreak,profile.winStreak);
-  saveProfile();
+  saveProfile();updateWinStreakQuickButton();
   setTimeout(()=>showWinStreakPopup(outcome,previousStreak,gameLabel),90);
 }
 let pendingLossRescue=null;
 function hideLossRescueOffer() {
-  $("#lossRescuePopup").classList.add("hidden");
+  const popup=$("#lossRescuePopup");
+  if(popup.open)popup.close();
+  popup.classList.add("hidden");
 }
 function stopRescueVideo() {
   const video=$("#rescueVideo");
   video.pause();video.currentTime=0;video.controls=false;
-  $("#rescueVideoOverlay").classList.add("hidden");
+  const overlay=$("#rescueVideoOverlay");
+  if(overlay.open)overlay.close();
+  overlay.classList.add("hidden");
 }
 function cancelLossRescue() {
   pendingLossRescue=null;hideLossRescueOffer();stopRescueVideo();
@@ -496,7 +529,9 @@ function showLossRescueOffer({gameLabel,onDecline,onComplete}) {
   pendingLossRescue={onDecline,onComplete};
   $("#lossRescueGame").textContent=`${gameLabel} · защита серии`;
   $("#lossRescueStreak").textContent=victoryCountLabel(profile.winStreak);
-  $("#lossRescuePopup").classList.remove("hidden");
+  const popup=$("#lossRescuePopup");
+  popup.classList.remove("hidden");
+  if(!popup.open)popup.showModal();
   requestAnimationFrame(()=>$("#watchRescueVideo").focus());
 }
 function declineLossRescue() {
@@ -512,7 +547,9 @@ function startRescueVideo() {
   $("#rescueVideoMute").setAttribute("aria-pressed","false");
   $("#rescueVideoMute").textContent="🔊 Отключить звук";
   $("#rescueVideoProgress").textContent="Видео начинается…";
-  $("#rescueVideoOverlay").classList.remove("hidden");
+  const overlay=$("#rescueVideoOverlay");
+  overlay.classList.remove("hidden");
+  if(!overlay.open)overlay.showModal();
   const playback=video.play();
   if(playback)playback.catch(()=>{
     video.controls=true;
@@ -540,8 +577,14 @@ $("#rescueVideo").addEventListener("timeupdate",()=>{
   $("#rescueVideoProgress").textContent=`До новой партии: ${minutes}:${seconds}`;
 });
 $("#rescueVideo").addEventListener("ended",completeLossRescue);
+$("#lossRescuePopup").addEventListener("cancel",event=>event.preventDefault());
+$("#rescueVideoOverlay").addEventListener("cancel",event=>event.preventDefault());
+$("#winStreakPopup").addEventListener("cancel",event=>{event.preventDefault();closeWinStreakPopup()});
 $("#winStreakClose").addEventListener("click",closeWinStreakPopup);
 $("#winStreakContinue").addEventListener("click",closeWinStreakPopup);
+$("#streakQuickButton").addEventListener("click",()=>{
+  showWinStreakPopup("overview",profile.winStreak,"Клуб настольных игр");
+});
 document.addEventListener("keydown",event=>{
   if(event.key==="Escape"&&(
     !$("#lossRescuePopup").classList.contains("hidden")||
@@ -587,6 +630,7 @@ function applyProfile() {
   levelLabel.textContent=playerTier?`Уровень ${tierLabels[playerTier]}`:`До уровня: ${Math.max(0,10-profile.games.length)} партий`;
   levelLabel.classList.toggle("has-level",Boolean(playerTier));
   updateDifficultyUI();
+  updateWinStreakQuickButton();
   renderHistory();
   renderStandings();
 }
@@ -728,10 +772,22 @@ function leaveSeat() {
   }, 320);
 }
 
-$$(".sidebar-tabs button").forEach(b => b.addEventListener("click", () => {
-  $$(".sidebar-tabs button").forEach(x => x.classList.toggle("active", x === b));
+const clubSidebar=$("#clubSidebar"),sidebarCollapse=$("#sidebarCollapse");
+function setSidebarCollapsed(collapsed,persist=true){
+  clubSidebar.classList.toggle("collapsed",collapsed);
+  sidebarCollapse.setAttribute("aria-expanded",String(!collapsed));
+  sidebarCollapse.setAttribute("aria-label",collapsed?"Развернуть меню":"Свернуть меню");
+  sidebarCollapse.title=collapsed?"Развернуть меню":"Свернуть меню";
+  sidebarCollapse.querySelector("span").textContent=collapsed?"+":"−";
+  if(persist)localStorage.setItem("quietMoveSidebarCollapsed",collapsed?"1":"0");
+}
+setSidebarCollapsed(localStorage.getItem("quietMoveSidebarCollapsed")==="1",false);
+sidebarCollapse.addEventListener("click",()=>setSidebarCollapsed(!clubSidebar.classList.contains("collapsed")));
+$$(".sidebar-tabs button[data-panel]").forEach(b => b.addEventListener("click", () => {
+  $$(".sidebar-tabs button[data-panel]").forEach(x => x.classList.toggle("active", x === b));
   const panels={rooms:"#roomsPanel",history:"#historyPanel",characters:"#charactersPanel",playerProfile:"#playerProfilePanel"};
   Object.entries(panels).forEach(([name,selector])=>$(selector).classList.toggle("hidden",b.dataset.panel!==name));
+  if(clubSidebar.classList.contains("collapsed"))setSidebarCollapsed(false);
 }));
 $("#customizeButton").addEventListener("click", () => $("#customizer").showModal());
 $("#editPlayerProfile").addEventListener("click", () => $("#customizer").showModal());

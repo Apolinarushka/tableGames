@@ -1,0 +1,243 @@
+/*
+ * Unified facial proportions for the player, profile preview and club guests.
+ * Hairlines keep the forehead, eyebrows and eyes visible at every scale.
+ */
+
+:root { --hair: #4a2d22; }
+
+/* Approved hair palette for the fixed club characters. */
+.table .npc-a { --npc-hair: #4a2d22 !important; }
+.table .npc-b,
+.table .npc-d { --npc-hair: #171514 !important; }
+.table .npc-c { --npc-hair: #783f2b !important; }
+.table .npc.bot { --npc-hair: #c7ad83 !important; }
+.hall-person.walker-one { --person-hair: #4a2d22 !important; }
+.hall-person.walker-two { --person-hair: #171514 !important; }
+.hall-person.observer-one { --person-hair: #783f2b !important; }
+
+/* Compact portrait in the top bar. */
+.mini-avatar:not(.has-photo) {
+  background:
+    radial-gradient(circle at 38% 42%, #fff 0 .7px, transparent .9px),
+    radial-gradient(circle at 60% 42%, #fff 0 .7px, transparent .9px),
+    radial-gradient(circle at 39% 44%, #211915 0 1.3px, transparent 1.5px),
+    radial-gradient(circle at 61% 44%, #211915 0 1.3px, transparent 1.5px),
+    radial-gradient(circle at 39% 44%, #76543b 0 2.2px, #3e2b22 2.3px, transparent 2.5px),
+    radial-gradient(circle at 61% 44%, #76543b 0 2.2px, #3e2b22 2.3px, transparent 2.5px),
+    radial-gradient(ellipse at 39% 44%, #fff8ed 0 3.2px, #4a342a 3.3px, transparent 3.6px),
+    radial-gradient(ellipse at 61% 44%, #fff8ed 0 3.2px, #4a342a 3.3px, transparent 3.6px),
+    linear-gradient(10deg, transparent 40%, var(--hair) 43% 59%, transparent 62%) 7px 8px / 6px 3px no-repeat,
+    linear-gradient(-10deg, transparent 40%, var(--hair) 43% 59%, transparent 62%) 15px 8px / 6px 3px no-repeat,
+    radial-gradient(ellipse at 50% 61%, transparent 0 8%, #8a4b43 9% 11%, transparent 12%),
+    radial-gradient(ellipse at 50% 43%, var(--skin) 0 36%, transparent 37%),
+    linear-gradient(135deg, transparent 0 13%, var(--hair) 14% 33%, transparent 34%),
+    linear-gradient(225deg, transparent 0 13%, var(--hair) 14% 33%, transparent 34%),
+    linear-gradient(var(--clothes) 0 100%);
+}
+
+/* Main player and full-size preview in the participant profile. */
+.character .head {
+  border-radius: 48% 48% 47% 47%;
+  background:
+    radial-gradient(circle at 30.5% 40.5%, #fff 0 1.5%, transparent 2%),
+    radial-gradient(circle at 66.5% 40.5%, #fff 0 1.5%, transparent 2%),
+    radial-gradient(circle at 32% 43%, #201814 0 4%, transparent 5%),
+    radial-gradient(circle at 68% 43%, #201814 0 4%, transparent 5%),
+    radial-gradient(circle at 32% 43%, #76543b 0 8%, #3d2b22 9%, transparent 10%),
+    radial-gradient(circle at 68% 43%, #76543b 0 8%, #3d2b22 9%, transparent 10%),
+    radial-gradient(ellipse at 32% 43%, #fff9ef 0 11%, #49352c 12%, transparent 13%),
+    radial-gradient(ellipse at 68% 43%, #fff9ef 0 11%, #49352c 12%, transparent 13%),
+    linear-gradient(10deg, transparent 39%, #392922 42% 60%, transparent 63%) 13% 36% / 32% 8% no-repeat,
+    linear-gradient(-10deg, transparent 39%, #392922 42% 60%, transparent 63%) 87% 36% / 32% 8% no-repeat,
+    linear-gradient(9deg, transparent 40%, var(--hair) 43% 58%, transparent 61%) 13% 25% / 31% 11% no-repeat,
+    linear-gradient(-9deg, transparent 40%, var(--hair) 43% 58%, transparent 61%) 87% 25% / 31% 11% no-repeat,
+    var(--skin);
+}
+
+.character .head::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 49%;
+  width: 8%;
+  height: 20%;
+  border: 0;
+  border-right: 1px solid color-mix(in srgb, var(--skin), #74422f 35%);
+  border-bottom: 1px solid color-mix(in srgb, var(--skin), #74422f 35%);
+  border-radius: 0 0 70% 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.character .head::after {
+  content: "";
+  position: absolute;
+  left: 31%;
+  top: 73%;
+  width: 38%;
+  height: 10%;
+  border: 0;
+  border-bottom: 1.5px solid #864940;
+  border-radius: 0 0 60% 60%;
+  background: transparent;
+}
+
+.character.face-calm .head::after {
+  top: 75%;
+  height: 0;
+  border-radius: 0;
+}
+
+.character.face-freckles .head {
+  background:
+    radial-gradient(circle at 24% 60%, #995b42 0 2%, transparent 3%),
+    radial-gradient(circle at 30% 64%, #995b42 0 2%, transparent 3%),
+    radial-gradient(circle at 76% 60%, #995b42 0 2%, transparent 3%),
+    radial-gradient(circle at 70% 64%, #995b42 0 2%, transparent 3%),
+    radial-gradient(circle at 30.5% 40.5%, #fff 0 1.5%, transparent 2%),
+    radial-gradient(circle at 66.5% 40.5%, #fff 0 1.5%, transparent 2%),
+    radial-gradient(circle at 32% 43%, #201814 0 4%, transparent 5%),
+    radial-gradient(circle at 68% 43%, #201814 0 4%, transparent 5%),
+    radial-gradient(circle at 32% 43%, #76543b 0 8%, #3d2b22 9%, transparent 10%),
+    radial-gradient(circle at 68% 43%, #76543b 0 8%, #3d2b22 9%, transparent 10%),
+    radial-gradient(ellipse at 32% 43%, #fff9ef 0 11%, #49352c 12%, transparent 13%),
+    radial-gradient(ellipse at 68% 43%, #fff9ef 0 11%, #49352c 12%, transparent 13%),
+    linear-gradient(10deg, transparent 39%, #392922 42% 60%, transparent 63%) 13% 36% / 32% 8% no-repeat,
+    linear-gradient(-10deg, transparent 39%, #392922 42% 60%, transparent 63%) 87% 36% / 32% 8% no-repeat,
+    linear-gradient(9deg, transparent 40%, var(--hair) 43% 58%, transparent 61%) 13% 25% / 31% 11% no-repeat,
+    linear-gradient(-9deg, transparent 40%, var(--hair) 43% 58%, transparent 61%) 87% 25% / 31% 11% no-repeat,
+    var(--skin);
+}
+
+.character .hair {
+  top: 2px;
+  clip-path: polygon(0 0, 100% 0, 100% 73%, 82% 66%, 67% 45%, 50% 69%, 33% 45%, 18% 66%, 0 73%);
+}
+
+.character.hair-wave .hair { top: 1px; }
+.character.hair-short .hair { top: 3px; }
+
+.character.hair-bob .hair {
+  top: 1px;
+  clip-path: polygon(0 0,100% 0,100% 100%,82% 82%,78% 31%,66% 25%,50% 43%,34% 25%,22% 31%,18% 82%,0 100%);
+}
+
+.player .character .hair { top: 3px; }
+.player .character.hair-wave .hair,
+.player .character.hair-bob .hair { top: 1px; }
+
+/* Side profiles of players seated at tables. */
+.table .npc-head {
+  background:
+    radial-gradient(circle at 75% 37%, #fff 0 1.5%, transparent 2%),
+    radial-gradient(circle at 78% 40%, #201814 0 4%, transparent 5%),
+    radial-gradient(circle at 78% 40%, #76543b 0 9%, #3d2b22 10%, transparent 11%),
+    radial-gradient(ellipse at 78% 40%, #fff9ef 0 13%, #49352c 14%, transparent 15%),
+    linear-gradient(8deg, transparent 39%, #392922 42% 61%, transparent 64%) 82% 31% / 48% 8% no-repeat,
+    radial-gradient(ellipse at 88% 73%, #89483f 0 3%, transparent 4%),
+    var(--npc-skin);
+}
+
+.table .facing-left .npc-head {
+  background:
+    radial-gradient(circle at 25% 37%, #fff 0 1.5%, transparent 2%),
+    radial-gradient(circle at 22% 40%, #201814 0 4%, transparent 5%),
+    radial-gradient(circle at 22% 40%, #76543b 0 9%, #3d2b22 10%, transparent 11%),
+    radial-gradient(ellipse at 22% 40%, #fff9ef 0 13%, #49352c 14%, transparent 15%),
+    linear-gradient(-8deg, transparent 39%, #392922 42% 61%, transparent 64%) 18% 31% / 48% 8% no-repeat,
+    radial-gradient(ellipse at 12% 73%, #89483f 0 3%, transparent 4%),
+    var(--npc-skin);
+}
+
+.table .npc-head::before {
+  right: 2px;
+  left: auto;
+  top: 6px;
+  width: 8px;
+  height: 2px;
+  border-radius: 60%;
+  background: var(--npc-hair);
+  box-shadow: none;
+  transform: rotate(7deg);
+}
+
+.table .facing-left .npc-head::before {
+  right: auto;
+  left: 2px;
+  background: var(--npc-hair);
+  box-shadow: none;
+  transform: rotate(-7deg);
+}
+
+.table .npc-smile .npc-head,
+.table .npc-freckles .npc-head {
+  background:
+    radial-gradient(circle at 75% 37%, #fff 0 1.5%, transparent 2%),
+    radial-gradient(circle at 78% 40%, #201814 0 4%, transparent 5%),
+    radial-gradient(circle at 78% 40%, #76543b 0 9%, #3d2b22 10%, transparent 11%),
+    radial-gradient(ellipse at 78% 40%, #fff9ef 0 13%, #49352c 14%, transparent 15%),
+    linear-gradient(8deg, transparent 39%, #392922 42% 61%, transparent 64%) 82% 31% / 48% 8% no-repeat,
+    radial-gradient(circle at 69% 58%, #91533e 0 2%, transparent 3%),
+    radial-gradient(circle at 82% 58%, #91533e 0 2%, transparent 3%),
+    radial-gradient(ellipse at 88% 73%, #89483f 0 3%, transparent 4%),
+    var(--npc-skin);
+}
+
+.table .facing-left.npc-smile .npc-head,
+.table .facing-left.npc-freckles .npc-head {
+  background:
+    radial-gradient(circle at 25% 37%, #fff 0 1.5%, transparent 2%),
+    radial-gradient(circle at 22% 40%, #201814 0 4%, transparent 5%),
+    radial-gradient(circle at 22% 40%, #76543b 0 9%, #3d2b22 10%, transparent 11%),
+    radial-gradient(ellipse at 22% 40%, #fff9ef 0 13%, #49352c 14%, transparent 15%),
+    linear-gradient(-8deg, transparent 39%, #392922 42% 61%, transparent 64%) 18% 31% / 48% 8% no-repeat,
+    radial-gradient(circle at 31% 58%, #91533e 0 2%, transparent 3%),
+    radial-gradient(circle at 18% 58%, #91533e 0 2%, transparent 3%),
+    radial-gradient(ellipse at 12% 73%, #89483f 0 3%, transparent 4%),
+    var(--npc-skin);
+}
+
+.table .npc-hair {
+  top: -6px;
+  height: 12px;
+  clip-path: polygon(0 0,100% 0,100% 76%,76% 62%,54% 45%,34% 67%,0 84%);
+}
+
+.table .npc-hair-bob .npc-hair {
+  top: -6px;
+  clip-path: polygon(0 0,100% 0,100% 100%,79% 78%,74% 25%,52% 42%,31% 24%,22% 76%,0 100%);
+}
+
+.table .npc-hair-short .npc-hair {
+  top: -5px;
+  height: 9px;
+}
+
+/* Front-facing people walking through or observing the hall. */
+.hall-head {
+  background:
+    radial-gradient(circle at 29% 44%, #fff 0 .6px, transparent .8px),
+    radial-gradient(circle at 67% 44%, #fff 0 .6px, transparent .8px),
+    radial-gradient(circle at 31% 48%, #201814 0 1.1px, transparent 1.35px),
+    radial-gradient(circle at 69% 48%, #201814 0 1.1px, transparent 1.35px),
+    radial-gradient(circle at 31% 48%, #76543b 0 2px, #3d2b22 2.1px, transparent 2.35px),
+    radial-gradient(circle at 69% 48%, #76543b 0 2px, #3d2b22 2.1px, transparent 2.35px),
+    radial-gradient(ellipse at 31% 48%, #fff9ef 0 2.8px, #49352c 2.9px, transparent 3.2px),
+    radial-gradient(ellipse at 69% 48%, #fff9ef 0 2.8px, #49352c 2.9px, transparent 3.2px),
+    linear-gradient(9deg, transparent 39%, var(--person-hair) 42% 59%, transparent 62%) 3px 6px / 7px 3px no-repeat,
+    linear-gradient(-9deg, transparent 39%, var(--person-hair) 42% 59%, transparent 62%) 11px 6px / 7px 3px no-repeat,
+    radial-gradient(ellipse at 50% 74%, #8c4b43 0 2px, transparent 2.5px),
+    var(--person-skin);
+}
+
+.hall-hair {
+  top: -3px;
+  height: 11px;
+  clip-path: polygon(0 0,100% 0,100% 75%,82% 64%,65% 44%,50% 67%,34% 44%,17% 65%,0 75%);
+}
+
+.walker-one .hall-hair {
+  top: -4px;
+  height: 18px;
+  clip-path: polygon(0 0,100% 0,100% 100%,82% 78%,76% 29%,64% 23%,50% 42%,35% 23%,23% 30%,17% 78%,0 100%);
+}

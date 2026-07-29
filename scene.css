@@ -1974,15 +1974,145 @@
   cursor: default;
 }
 
+.room-streak-quick {
+  position: absolute;
+  z-index: 18;
+  top: 150px;
+  left: 16px;
+  width: 196px;
+  min-height: 70px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 14px;
+  gap: 9px;
+  align-items: center;
+  border: 1px solid #b9da7438;
+  border-radius: 13px;
+  padding: 10px 9px;
+  color: #ecf1e8;
+  text-align: left;
+  background:
+    radial-gradient(circle at 14% 20%, #93c9472d, transparent 34%),
+    linear-gradient(145deg, #20352d, #0e1b16e8);
+  box-shadow: inset 0 1px #ffffff13, 0 15px 35px #0007;
+  backdrop-filter: blur(9px);
+  cursor: pointer;
+  transition: transform .18s, border-color .18s, filter .18s;
+}
+
+.room-streak-quick:hover,
+.room-streak-quick:focus-visible {
+  transform: translateX(3px);
+  border-color: #b9da7477;
+  filter: brightness(1.1);
+}
+
+.room-streak-quick.has-streak {
+  border-color: #b9da7466;
+  box-shadow: inset 0 1px #ffffff13, 0 0 22px #8ed5411f, 0 15px 35px #0007;
+}
+
+.room-streak-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  transform: rotate(45deg);
+  border: 2px solid #e6f3c9;
+  border-radius: 9px;
+  color: #fff;
+  background: linear-gradient(145deg, #a7da4e, #58a62d);
+  box-shadow: inset 0 2px #ffffff55, 0 0 13px #8ed54144;
+  font: 900 20px Arial, sans-serif;
+}
+
+.room-streak-icon::after {
+  content: "✓";
+  transform: rotate(-45deg);
+}
+
+.room-streak-copy {
+  min-width: 0;
+}
+
+.room-streak-copy small,
+.room-streak-copy b,
+.room-streak-copy em {
+  display: block;
+}
+
+.room-streak-copy small {
+  color: #9caea1;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.room-streak-copy b {
+  margin-top: 3px;
+  overflow: hidden;
+  color: #dff0a9;
+  font: 700 14px Georgia, serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-streak-copy em {
+  margin-top: 3px;
+  color: #819087;
+  font-size: 8px;
+  font-style: normal;
+}
+
+.room-streak-copy i {
+  color: #b9c8bd;
+  font-style: normal;
+}
+
+.room-streak-arrow {
+  color: #9db270;
+  font-size: 24px;
+}
+
+body:has(dialog[open]) .room-streak-quick {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 600px) {
+  .room-streak-quick {
+    top: 82px;
+    left: 10px;
+    width: 158px;
+    min-height: 57px;
+    grid-template-columns: 31px minmax(0,1fr) 10px;
+    padding: 7px;
+  }
+  .room-streak-icon { width: 29px; height: 29px; border-radius: 7px; font-size: 15px; }
+  .room-streak-copy b { font-size: 11px; }
+  .room-streak-copy em { display: none; }
+}
+
 .win-streak-popup {
   position: fixed;
   z-index: 320;
   inset: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
   display: grid;
   place-items: center;
+  border: 0;
   padding: 20px;
   background: #07100bd9;
   backdrop-filter: blur(12px);
+}
+
+.win-streak-popup::backdrop,
+.loss-rescue-popup::backdrop,
+.rescue-video-overlay::backdrop {
+  background: transparent;
 }
 
 .win-streak-popup.hidden {
@@ -2148,8 +2278,14 @@
   position: fixed;
   z-index: 330;
   inset: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
   display: grid;
   place-items: center;
+  border: 0;
   padding: 20px;
   background: #07100be8;
   backdrop-filter: blur(13px);
@@ -2161,10 +2297,14 @@
 }
 
 .loss-rescue-card {
-  width: min(500px, 94vw);
-  padding: 29px 34px 31px;
-  border: 1px solid #d7ad6247;
-  border-radius: 22px;
+  width: min(720px, 94vw);
+  min-height: min(520px, 88vh);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 38px 54px 42px;
+  border: 2px solid #d7ad6266;
+  border-radius: 28px;
   color: #f3ead8;
   text-align: center;
   background:
@@ -2179,8 +2319,8 @@
 }
 
 .loss-rescue-shield {
-  width: 72px;
-  height: 78px;
+  width: 94px;
+  height: 102px;
   display: grid;
   place-items: center;
   margin: 15px auto 10px;
@@ -2191,25 +2331,28 @@
 }
 
 .loss-rescue-shield i {
-  font: 900 32px Arial, sans-serif;
+  font: 900 42px Arial, sans-serif;
 }
 
 .loss-rescue-card h2 {
-  margin: 8px 0 10px;
-  font: 700 clamp(24px, 5vw, 34px) Georgia, serif;
+  margin: 10px 0 14px;
+  color: #fff8e7;
+  font: 700 clamp(34px, 6vw, 56px) Georgia, serif;
+  line-height: 1.05;
+  text-wrap: balance;
 }
 
 .loss-rescue-card > p {
-  margin: 0 auto 17px;
-  max-width: 410px;
+  margin: 0 auto 21px;
+  max-width: 570px;
   color: #b9c5bd;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
 }
 
 .loss-rescue-series {
-  margin: 0 auto 20px;
-  padding: 11px 14px;
+  margin: 0 auto 25px;
+  padding: 13px 18px;
   border: 1px solid #ffffff10;
   border-radius: 9px;
   color: #aab7ae;
@@ -2219,6 +2362,7 @@
 .loss-rescue-series b {
   margin-left: 6px;
   color: #d9ef9d;
+  font-size: 18px;
 }
 
 .loss-rescue-actions {
@@ -2228,16 +2372,59 @@
 }
 
 .loss-rescue-actions button {
-  min-height: 43px;
+  min-height: 96px;
+  display: grid;
+  place-content: center;
+  gap: 5px;
   margin: 0;
+  border-radius: 14px;
+  transition: transform .16s, filter .16s;
+}
+
+.loss-rescue-actions button:hover,
+.loss-rescue-actions button:focus-visible {
+  transform: translateY(-3px);
+  filter: brightness(1.1);
+}
+
+.loss-rescue-actions button b,
+.loss-rescue-actions button span {
+  display: block;
+}
+
+.loss-rescue-actions button b {
+  font: 800 28px Georgia, serif;
+}
+
+.loss-rescue-actions button span {
+  font-size: 12px;
+}
+
+.loss-rescue-actions .rescue-choice-yes {
+  color: #18300e;
+  background: linear-gradient(145deg, #b9e760, #79b93c);
+  box-shadow: inset 0 2px #ffffff66, 0 10px 22px #6fae3440;
+}
+
+.loss-rescue-actions .rescue-choice-no {
+  border-color: #ffffff24;
+  color: #d7ded9;
+  background: #ffffff0c;
 }
 
 .rescue-video-overlay {
   position: fixed;
   z-index: 340;
   inset: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
   display: grid;
   place-items: center;
+  border: 0;
+  padding: 0;
   overflow: hidden;
   background: #000;
 }
@@ -2297,8 +2484,9 @@
 }
 
 @media (max-width: 520px) {
-  .loss-rescue-card { padding: 25px 18px 22px; }
+  .loss-rescue-card { min-height: min(540px, 90vh); padding: 28px 18px 24px; }
   .loss-rescue-actions { grid-template-columns: 1fr; }
+  .loss-rescue-actions button { min-height: 76px; }
   .rescue-video-mute { top: 12px; left: 12px; font-size: 11px; }
 }
 

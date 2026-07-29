@@ -15,6 +15,9 @@
   <link rel="stylesheet" href="profile.css">
   <link rel="stylesheet" href="history.css">
   <link rel="stylesheet" href="rules.css">
+  <link rel="stylesheet" href="faces.css">
+  <link rel="stylesheet" href="dresses.css">
+  <link rel="stylesheet" href="sidebar.css">
 </head>
 <body>
   <main id="app">
@@ -37,6 +40,15 @@
         <span>Шашечный клуб · вечерняя сессия</span>
         <b>Свободно 2 стола</b>
       </div>
+      <button class="room-streak-quick" id="streakQuickButton" type="button" aria-label="Открыть данные о цепочке побед">
+        <span class="room-streak-icon" aria-hidden="true"></span>
+        <span class="room-streak-copy">
+          <small>Цепочка побед</small>
+          <b id="roomWinStreak">0 побед</b>
+          <em>Рекорд: <i id="roomBestStreak">0</i></em>
+        </span>
+        <span class="room-streak-arrow" aria-hidden="true">›</span>
+      </button>
       <div class="wall wall-back">
         <button class="trophy-gallery trophy-history-trigger" id="trophyHistoryTrigger" type="button" aria-label="Открыть историю шахматных соревнований" title="История шахматных соревнований">
           <span class="trophy-bay"><span class="wall-cup cup-gold"><i></i></span><span class="wall-medal medal-red"><i></i></span></span>
@@ -83,6 +95,36 @@
         <span class="npc bot facing-left npc-hair-short npc-calm npc-mustache-classic" data-character-id="master" aria-label="Открыть анкету Старого Мастера" style="--npc-skin:#d9a77f;--npc-hair:#d8c2a0;--npc-clothes:#d7ad32"><span class="npc-name">Старый Мастер</span><i class="npc-hair"></i><i class="npc-head"></i><i class="npc-mustache"></i><i class="npc-body"></i><i class="npc-arm"></i><i class="npc-hand"></i><i class="npc-leg"></i><i class="npc-shoe"></i></span>
       </button>
 
+      <div class="hall-person hall-walker walker-one" aria-label="Лада идёт по залу" style="--person-skin:#dca47d;--person-hair:#442a22;--person-clothes:#c84a42;--person-trousers:#30424b">
+        <span class="hall-person-name">Лада</span>
+        <span class="hall-silhouette">
+          <i class="hall-hair"></i><i class="hall-head"></i><i class="hall-neck"></i><i class="hall-torso"></i>
+          <span class="hall-arm arm-left"><i></i></span><span class="hall-arm arm-right"><i></i></span>
+          <span class="hall-leg leg-left"><i></i></span><span class="hall-leg leg-right"><i></i></span>
+        </span>
+        <i class="hall-shadow"></i>
+      </div>
+
+      <div class="hall-person hall-walker walker-two" aria-label="Марк идёт по залу" style="--person-skin:#a76f52;--person-hair:#171918;--person-clothes:#3099cb;--person-trousers:#292f36">
+        <span class="hall-person-name">Марк</span>
+        <span class="hall-silhouette">
+          <i class="hall-hair"></i><i class="hall-head"></i><i class="hall-neck"></i><i class="hall-torso"></i>
+          <span class="hall-arm arm-left"><i></i></span><span class="hall-arm arm-right"><i></i></span>
+          <span class="hall-leg leg-left"><i></i></span><span class="hall-leg leg-right"><i></i></span>
+        </span>
+        <i class="hall-shadow"></i>
+      </div>
+
+      <div class="hall-person hall-observer observer-one" aria-label="Север наблюдает за партией" style="--person-skin:#e2b18c;--person-hair:#6b3b26;--person-clothes:#339565;--person-trousers:#40364a">
+        <span class="hall-person-name">Север · наблюдает</span>
+        <span class="hall-silhouette">
+          <i class="hall-hair"></i><i class="hall-head"></i><i class="hall-neck"></i><i class="hall-torso"></i>
+          <span class="hall-arm arm-left"><i></i></span><span class="hall-arm arm-right"><i></i></span>
+          <span class="hall-leg leg-left"><i></i></span><span class="hall-leg leg-right"><i></i></span>
+        </span>
+        <i class="hall-shadow"></i>
+      </div>
+
       <div class="player" id="player" style="--px:50%;--py:84%">
         <span class="player-name" id="playerLabel">Гость</span>
         <span class="character hair-wave face-smile mustache-none" id="character"><i class="ear e1"></i><i class="ear e2"></i><i class="hair"></i><i class="head"></i><i class="mustache"></i><i class="body"></i><i class="arm a1"></i><i class="arm a2"></i><i class="leg l1"></i><i class="leg l2"></i></span>
@@ -93,12 +135,13 @@
       <div class="controls-hint"><span>Клик по полу — идти</span><span>Клик по столу — подойти и сесть</span><span>Клик по человеку — открыть анкету</span><kbd>F3</kbd><span>доска клуба</span></div>
     </section>
 
-    <aside class="sidebar">
+    <aside class="sidebar" id="clubSidebar">
       <div class="sidebar-tabs">
-        <button class="active" data-panel="rooms">Столы</button>
-        <button data-panel="history">История</button>
-        <button data-panel="characters">Персонажи</button>
-        <button data-panel="playerProfile">Анкета</button>
+        <button class="active" type="button" data-panel="rooms">Столы</button>
+        <button type="button" data-panel="history">История</button>
+        <button type="button" data-panel="characters">Персонажи</button>
+        <button type="button" data-panel="playerProfile">Анкета</button>
+        <button class="sidebar-collapse" id="sidebarCollapse" type="button" aria-expanded="true" aria-label="Свернуть меню" title="Свернуть меню"><span aria-hidden="true">−</span></button>
       </div>
       <div id="roomsPanel" class="side-panel">
         <div class="room-row free" data-focus="1"><b>Стол 01</b><span>Свободен</span><small>Играть</small></div>
@@ -422,10 +465,11 @@
             <button type="button" data-color="#754a37" style="--color:#754a37"></button>
           </div></fieldset>
           <fieldset><legend>Цвет волос</legend><div class="swatches" id="hairSwatches">
-            <button type="button" data-color="#34261f" style="--color:#34261f" class="selected"></button>
-            <button type="button" data-color="#b57a3b" style="--color:#b57a3b"></button>
-            <button type="button" data-color="#d8c2a0" style="--color:#d8c2a0"></button>
-            <button type="button" data-color="#151515" style="--color:#151515"></button>
+            <button type="button" data-color="#171514" style="--color:#171514" aria-label="Чёрные волосы" title="Чёрные"></button>
+            <button type="button" data-color="#4a2d22" style="--color:#4a2d22" class="selected" aria-label="Коричневые волосы" title="Коричневые"></button>
+            <button type="button" data-color="#783f2b" style="--color:#783f2b" aria-label="Каштановые волосы" title="Каштановые"></button>
+            <button type="button" data-color="#6f2535" style="--color:#6f2535" aria-label="Винные волосы" title="Винные"></button>
+            <button type="button" data-color="#c7ad83" style="--color:#c7ad83" aria-label="Бежевые волосы" title="Бежевые"></button>
           </div></fieldset>
           <fieldset><legend>Причёска</legend><div class="choice-row" id="hairStyles">
             <button type="button" data-style="hair-wave" class="selected">Волна</button>
@@ -646,7 +690,7 @@
     </section>
   </dialog>
 
-  <section class="win-streak-popup hidden" id="winStreakPopup" role="dialog" aria-modal="true" aria-labelledby="winStreakTitle">
+  <dialog class="win-streak-popup hidden" id="winStreakPopup" aria-labelledby="winStreakTitle">
     <div class="win-streak-card">
       <button class="win-streak-close" id="winStreakClose" type="button" aria-label="Закрыть">×</button>
       <span class="eyebrow" id="winStreakGame">Серия клуба</span>
@@ -659,23 +703,23 @@
       <p id="winStreakMessage">Начните новую победную серию!</p>
       <button class="primary win-streak-continue" id="winStreakContinue" type="button">Продолжить</button>
     </div>
-  </section>
+  </dialog>
 
-  <section class="loss-rescue-popup hidden" id="lossRescuePopup" role="dialog" aria-modal="true" aria-labelledby="lossRescueTitle">
+  <dialog class="loss-rescue-popup hidden" id="lossRescuePopup" aria-labelledby="lossRescueTitle">
     <div class="loss-rescue-card">
       <span class="eyebrow" id="lossRescueGame">Партия завершена</span>
       <div class="loss-rescue-shield" aria-hidden="true"><i>✓</i></div>
-      <h2 id="lossRescueTitle">Сохранить цепочку побед?</h2>
+      <h2 id="lossRescueTitle">Можно сохранить серию побед!</h2>
       <p>Посмотрите короткое видео, и поражение не попадёт в рейтинг, статистику или турнирную таблицу. После просмотра начнётся новая партия.</p>
       <div class="loss-rescue-series">Текущая серия: <b id="lossRescueStreak">0 побед</b></div>
       <div class="loss-rescue-actions">
-        <button class="primary" id="watchRescueVideo" type="button">Смотреть видео</button>
-        <button class="result-secondary" id="declineRescueVideo" type="button">Отказаться</button>
+        <button class="primary rescue-choice-yes" id="watchRescueVideo" type="button"><b>ДА</b><span>Смотреть видео</span></button>
+        <button class="result-secondary rescue-choice-no" id="declineRescueVideo" type="button"><b>НЕТ</b><span>Учесть поражение</span></button>
       </div>
     </div>
-  </section>
+  </dialog>
 
-  <section class="rescue-video-overlay hidden" id="rescueVideoOverlay" aria-label="Видео для сохранения победной серии">
+  <dialog class="rescue-video-overlay hidden" id="rescueVideoOverlay" aria-label="Видео для сохранения победной серии">
     <video id="rescueVideo" preload="metadata" playsinline>
       <source src="assets/media/streak-rescue.mp4" type="video/mp4">
     </video>
@@ -684,7 +728,7 @@
       <b>Смотрите до конца, чтобы сохранить серию</b>
       <span id="rescueVideoProgress">Видео начинается…</span>
     </div>
-  </section>
+  </dialog>
 
   <div class="toast" id="toast"></div>
   <script src="game.js"></script>
