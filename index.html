@@ -74,18 +74,18 @@
       <button class="table table-4 busy" data-table="4" style="--x:33%;--y:69%" aria-label="Стол 4, идёт партия">
         <span class="table-number">04</span><span class="table-top"><i></i></span>
         <span class="table-status">Идёт партия · 00:38</span><span class="chair c1"></span><span class="chair c2"></span>
-        <span class="npc npc-c facing-right npc-hair-bun npc-freckles" data-character-id="innokentiy" aria-label="Открыть анкету Иннокентия" style="--npc-skin:#f0c39c;--npc-hair:#b57a3b;--npc-clothes:#3099cb"><span class="npc-name">Иннокентий</span><i class="npc-hair"></i><i class="npc-head"></i><i class="npc-body"></i><i class="npc-arm"></i><i class="npc-hand"></i><i class="npc-leg"></i><i class="npc-shoe"></i></span>
+        <span class="npc npc-c facing-right npc-hair-bun npc-freckles npc-mustache-thin" data-character-id="innokentiy" aria-label="Открыть анкету Иннокентия" style="--npc-skin:#f0c39c;--npc-hair:#b57a3b;--npc-clothes:#3099cb"><span class="npc-name">Иннокентий</span><i class="npc-hair"></i><i class="npc-head"></i><i class="npc-mustache"></i><i class="npc-body"></i><i class="npc-arm"></i><i class="npc-hand"></i><i class="npc-leg"></i><i class="npc-shoe"></i></span>
         <span class="npc npc-d facing-left npc-hair-short npc-smile" data-character-id="olesya" aria-label="Открыть анкету Олеси" style="--npc-skin:#ae7656;--npc-hair:#20201c;--npc-clothes:#e0782f"><span class="npc-name">Олеся</span><i class="npc-hair"></i><i class="npc-head"></i><i class="npc-body"></i><i class="npc-arm"></i><i class="npc-hand"></i><i class="npc-leg"></i><i class="npc-shoe"></i></span>
       </button>
       <button class="table table-5 bot-table" data-table="5" style="--x:67%;--y:70%" aria-label="Стол 5, партия с ботом">
         <span class="table-number">05</span><span class="table-top"><i></i></span>
         <span class="table-status">Бот ждёт соперника</span><span class="chair c1"></span><span class="chair c2"></span>
-        <span class="npc bot facing-left npc-hair-short npc-calm" data-character-id="master" aria-label="Открыть анкету Старого Мастера" style="--npc-skin:#d9a77f;--npc-hair:#d8c2a0;--npc-clothes:#d7ad32"><span class="npc-name">Старый Мастер</span><i class="npc-hair"></i><i class="npc-head"></i><i class="npc-body"></i><i class="npc-arm"></i><i class="npc-hand"></i><i class="npc-leg"></i><i class="npc-shoe"></i></span>
+        <span class="npc bot facing-left npc-hair-short npc-calm npc-mustache-classic" data-character-id="master" aria-label="Открыть анкету Старого Мастера" style="--npc-skin:#d9a77f;--npc-hair:#d8c2a0;--npc-clothes:#d7ad32"><span class="npc-name">Старый Мастер</span><i class="npc-hair"></i><i class="npc-head"></i><i class="npc-mustache"></i><i class="npc-body"></i><i class="npc-arm"></i><i class="npc-hand"></i><i class="npc-leg"></i><i class="npc-shoe"></i></span>
       </button>
 
       <div class="player" id="player" style="--px:50%;--py:84%">
         <span class="player-name" id="playerLabel">Гость</span>
-        <span class="character hair-wave face-smile" id="character"><i class="ear e1"></i><i class="ear e2"></i><i class="hair"></i><i class="head"></i><i class="body"></i><i class="arm a1"></i><i class="arm a2"></i><i class="leg l1"></i><i class="leg l2"></i></span>
+        <span class="character hair-wave face-smile mustache-none" id="character"><i class="ear e1"></i><i class="ear e2"></i><i class="hair"></i><i class="head"></i><i class="mustache"></i><i class="body"></i><i class="arm a1"></i><i class="arm a2"></i><i class="leg l1"></i><i class="leg l2"></i></span>
         <span class="player-shadow"></span>
       </div>
 
@@ -359,7 +359,7 @@
       <div class="customizer-body">
         <div class="profile-visual-column">
           <div class="avatar-preview">
-            <span class="character large hair-wave face-smile" id="avatarPreview"><i class="ear e1"></i><i class="ear e2"></i><i class="hair"></i><i class="head"></i><i class="body"></i><i class="arm a1"></i><i class="arm a2"></i><i class="leg l1"></i><i class="leg l2"></i></span>
+            <span class="character large hair-wave face-smile mustache-none" id="avatarPreview"><i class="ear e1"></i><i class="ear e2"></i><i class="hair"></i><i class="head"></i><i class="mustache"></i><i class="body"></i><i class="arm a1"></i><i class="arm a2"></i><i class="leg l1"></i><i class="leg l2"></i></span>
             <img class="uploaded-profile-photo hidden" id="profilePhotoPreview" alt="Ваша фотография">
           </div>
           <label class="photo-upload-button" for="profilePhotoInput">Загрузить реальную фотографию
@@ -438,6 +438,12 @@
             <button type="button" data-style="face-calm">Спокойное</button>
             <button type="button" data-style="face-freckles">Веснушки</button>
           </div></fieldset>
+          <fieldset><legend>Усы</legend><div class="choice-row" id="mustacheStyles">
+            <button type="button" data-style="mustache-none" class="selected">Без усов</button>
+            <button type="button" data-style="mustache-thin">Тонкие</button>
+            <button type="button" data-style="mustache-classic">Классические</button>
+            <button type="button" data-style="mustache-handlebar">Закрученные</button>
+          </div></fieldset>
           <button id="saveAvatar" class="primary" value="default">Сохранить анкету</button>
         </div>
       </div>
@@ -502,6 +508,12 @@
         </section>
         <aside class="move-history">
           <header><div><span class="eyebrow">Протокол партии</span><h3>История ходов</h3></div><b id="moveCount">0</b></header>
+          <nav class="history-navigation" aria-label="Навигация по истории партии">
+            <button id="historyBack" type="button" disabled aria-label="Шаг назад по истории">← <span>Шаг назад</span></button>
+            <output id="historyPosition" aria-live="polite">Ход 0 из 0</output>
+            <button id="historyForward" type="button" disabled aria-label="Шаг вперёд по истории"><span>Шаг вперёд</span> →</button>
+          </nav>
+          <p class="history-navigation-hint" id="historyHint">Вернитесь к позиции и сделайте другой ход, чтобы переиграть партию.</p>
           <div class="move-history-head"><span>№</span><span>Игрок и ход</span><span>Время</span></div>
           <div class="move-history-list" id="moveHistory"><p class="empty-moves">Ходы появятся здесь</p></div>
         </aside>
@@ -526,6 +538,7 @@
           <div class="result-rating"><span>Изменение рейтинга</span><b id="resultDelta">+18</b></div>
           <div class="result-actions">
             <button class="primary" id="replayButton">Сыграть ещё раз</button>
+            <button class="result-secondary result-analysis-button" id="analyzeGameButton">Анализ партии</button>
             <button class="result-secondary" id="resultExitButton">Вернуться в клуб</button>
           </div>
         </div>
@@ -582,6 +595,14 @@
               <p id="arcadeDifficultyDescription"></p>
             </section>
             <div id="arcadeInfo" class="arcade-info"></div>
+            <nav class="arcade-history-navigation" aria-label="Навигация по истории партии">
+              <div>
+                <button id="arcadeHistoryBack" type="button" disabled aria-label="Шаг назад по истории">← <span>Шаг назад</span></button>
+                <button id="arcadeHistoryForward" type="button" disabled aria-label="Шаг вперёд по истории"><span>Шаг вперёд</span> →</button>
+              </div>
+              <output id="arcadeHistoryPosition" aria-live="polite">Ход 0 из 0</output>
+              <p id="arcadeHistoryHint">Можно вернуться к позиции и выбрать другое продолжение.</p>
+            </nav>
             <div id="arcadeActions" class="arcade-actions"></div>
           </aside>
           <aside class="arcade-chat" aria-labelledby="arcadeChatTitle">
@@ -617,12 +638,53 @@
           <p id="arcadeResultMessage">Мат поставлен. Отличная партия!</p>
           <div class="result-actions">
             <button class="primary" id="arcadeReplayButton">Реванш</button>
+            <button class="result-secondary result-analysis-button" id="arcadeAnalyzeButton">Анализ партии</button>
             <button class="result-secondary" id="arcadeResultMenuButton">Выйти в меню</button>
           </div>
         </div>
       </section>
     </section>
   </dialog>
+
+  <section class="win-streak-popup hidden" id="winStreakPopup" role="dialog" aria-modal="true" aria-labelledby="winStreakTitle">
+    <div class="win-streak-card">
+      <button class="win-streak-close" id="winStreakClose" type="button" aria-label="Закрыть">×</button>
+      <span class="eyebrow" id="winStreakGame">Серия клуба</span>
+      <h2 id="winStreakTitle">Цепочка побед</h2>
+      <div class="win-streak-track" id="winStreakTrack" aria-hidden="true"></div>
+      <div class="win-streak-score">
+        <div><span>Текущая серия</span><b id="winStreakCurrent">0 побед</b></div>
+        <div><span>Личный рекорд</span><b id="winStreakBest">0 побед</b></div>
+      </div>
+      <p id="winStreakMessage">Начните новую победную серию!</p>
+      <button class="primary win-streak-continue" id="winStreakContinue" type="button">Продолжить</button>
+    </div>
+  </section>
+
+  <section class="loss-rescue-popup hidden" id="lossRescuePopup" role="dialog" aria-modal="true" aria-labelledby="lossRescueTitle">
+    <div class="loss-rescue-card">
+      <span class="eyebrow" id="lossRescueGame">Партия завершена</span>
+      <div class="loss-rescue-shield" aria-hidden="true"><i>✓</i></div>
+      <h2 id="lossRescueTitle">Сохранить цепочку побед?</h2>
+      <p>Посмотрите короткое видео, и поражение не попадёт в рейтинг, статистику или турнирную таблицу. После просмотра начнётся новая партия.</p>
+      <div class="loss-rescue-series">Текущая серия: <b id="lossRescueStreak">0 побед</b></div>
+      <div class="loss-rescue-actions">
+        <button class="primary" id="watchRescueVideo" type="button">Смотреть видео</button>
+        <button class="result-secondary" id="declineRescueVideo" type="button">Отказаться</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="rescue-video-overlay hidden" id="rescueVideoOverlay" aria-label="Видео для сохранения победной серии">
+    <video id="rescueVideo" preload="metadata" playsinline>
+      <source src="assets/media/streak-rescue.mp4" type="video/mp4">
+    </video>
+    <button class="rescue-video-mute" id="rescueVideoMute" type="button" aria-pressed="false">🔊 Отключить звук</button>
+    <div class="rescue-video-status">
+      <b>Смотрите до конца, чтобы сохранить серию</b>
+      <span id="rescueVideoProgress">Видео начинается…</span>
+    </div>
+  </section>
 
   <div class="toast" id="toast"></div>
   <script src="game.js"></script>

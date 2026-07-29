@@ -103,6 +103,22 @@
     var(--npc-skin);
 }
 
+.table .npc-mustache {
+  z-index: 9;
+  top: 17px;
+  left: 35px;
+  width: 11px;
+  height: 4px;
+}
+
+.table .facing-left .npc-mustache {
+  left: 21px;
+}
+
+.table .npc-mustache-thin .npc-mustache {
+  height: 2px;
+}
+
 .table .npc-hair {
   z-index: 8;
   top: -3px;

@@ -1,6 +1,86 @@
 const arcadeEl=id=>document.getElementById(id);
 const arcadeNames={corners:"Уголки",chess:"Шахматы",domino:"Домино «Козёл»",fives:"Домино «Пятёрочки»"};
 let arcadeTableNo="01",arcadeMode=null,arcadeOver=false,arcadeTimer=null,arcadeRestartAction=null;
+let arcadeTimeline=[],arcadeTimelineIndex=-1,arcadeHistoryReview=false,arcadeAnalysisMode=false;
+let arcadeResultRecorded=false;
+
+function cloneArcadeState(value){
+  return typeof structuredClone==="function"?structuredClone(value):JSON.parse(JSON.stringify(value));
+}
+function updateArcadeHistoryControls(){
+  const back=arcadeEl("arcadeHistoryBack"),forward=arcadeEl("arcadeHistoryForward");
+  if(!back||!forward)return;
+  const last=Math.max(0,arcadeTimeline.length-1),position=Math.max(0,arcadeTimelineIndex);
+  back.disabled=arcadeTimelineIndex<=0||arcadeOver;
+  forward.disabled=arcadeTimelineIndex<0||arcadeTimelineIndex>=arcadeTimeline.length-1||arcadeOver;
+  arcadeEl("arcadeHistoryPosition").textContent=`Ход ${position} из ${last}`;
+  const hint=arcadeEl("arcadeHistoryHint");
+  hint.classList.toggle("is-reviewing",arcadeHistoryReview);
+  hint.textContent=arcadeHistoryReview
+    ?"Просмотр позиции: часы и бот на паузе. Сделайте свой ход, чтобы создать новое продолжение."
+    :"Можно вернуться к позиции и выбрать другое продолжение.";
+}
+function clearArcadeTimeline(){
+  arcadeTimeline=[];arcadeTimelineIndex=-1;arcadeHistoryReview=false;arcadeAnalysisMode=false;updateArcadeHistoryControls();
+}
+function captureArcadePosition(){
+  if(arcadeMode==="corners")return{
+    mode:"corners",board:cloneArcadeState(cornerBoard),turn:cornerTurn,
+    selected:cloneArcadeState(cornerSelected),chain:cloneArcadeState(cornerChain),last:cloneArcadeState(cornerLast)
+  };
+  if(arcadeMode==="chess")return{
+    mode:"chess",board:cloneArcadeState(chessBoard),turn:chessTurn,
+    selected:cloneArcadeState(chessSelected),lastMove:cloneArcadeState(chessLastMove),
+    history:cloneArcadeState(chessHistory),halfmove:chessHalfmove,
+    playerColor:chessPlayerColor,botColor:chessBotColor
+  };
+  if(["domino","fives"].includes(arcadeMode))return{mode:arcadeMode,domino:cloneArcadeState(domino)};
+  return null;
+}
+function pushArcadePosition(){
+  const snapshot=captureArcadePosition();if(!snapshot)return;
+  if(arcadeTimelineIndex<arcadeTimeline.length-1)arcadeTimeline=arcadeTimeline.slice(0,arcadeTimelineIndex+1);
+  arcadeTimeline.push(snapshot);arcadeTimelineIndex=arcadeTimeline.length-1;arcadeHistoryReview=false;
+  updateArcadeHistoryControls();
+}
+function resetArcadeTimeline(){
+  arcadeTimeline=[];arcadeTimelineIndex=-1;arcadeHistoryReview=false;arcadeAnalysisMode=false;pushArcadePosition();
+}
+function restoreArcadePosition(snapshot){
+  clearTimeout(arcadeTimer);arcadeTimer=null;hideArcadeResult();arcadeOver=false;setArcadeActions([]);
+  if(snapshot.mode==="corners"){
+    cornerBoard=cloneArcadeState(snapshot.board);cornerTurn=snapshot.turn;
+    cornerSelected=cloneArcadeState(snapshot.selected);cornerChain=cloneArcadeState(snapshot.chain);cornerLast=cloneArcadeState(snapshot.last);
+    renderCorners();
+  }else if(snapshot.mode==="chess"){
+    chessBoard=cloneArcadeState(snapshot.board);chessTurn=snapshot.turn;
+    chessSelected=cloneArcadeState(snapshot.selected);chessLastMove=cloneArcadeState(snapshot.lastMove);
+    chessHistory=cloneArcadeState(snapshot.history);chessHalfmove=snapshot.halfmove;
+    chessPlayerColor=snapshot.playerColor;chessBotColor=snapshot.botColor;renderChess();
+  }else{
+    domino=cloneArcadeState(snapshot.domino);renderDomino();
+  }
+}
+function resumeArcadeFromLatest(){
+  arcadeHistoryReview=false;updateArcadeHistoryControls();
+  if(arcadeOver)return;
+  if(arcadeMode==="corners"&&cornerTurn==="bot")arcadeTimer=setTimeout(cornerBotMove,380);
+  else if(arcadeMode==="chess"&&chessTurn===chessBotColor)arcadeTimer=setTimeout(chessBotMove,420);
+  else if(["domino","fives"].includes(arcadeMode)&&domino.turn==="bot")arcadeTimer=setTimeout(dominoBot,430);
+}
+function stepArcadeHistory(direction){
+  const next=arcadeTimelineIndex+direction;
+  if(next<0||next>=arcadeTimeline.length||arcadeOver)return;
+  arcadeTimelineIndex=next;arcadeHistoryReview=arcadeAnalysisMode||next<arcadeTimeline.length-1;
+  restoreArcadePosition(arcadeTimeline[next]);
+  if(!arcadeHistoryReview)resumeArcadeFromLatest();else updateArcadeHistoryControls();
+}
+function beginArcadeHistoryBranch(){
+  if(!arcadeHistoryReview)return;
+  clearTimeout(arcadeTimer);arcadeTimer=null;
+  arcadeTimeline=arcadeTimeline.slice(0,arcadeTimelineIndex+1);
+  arcadeHistoryReview=false;arcadeAnalysisMode=false;arcadeOver=false;hideArcadeResult();updateArcadeHistoryControls();
+}
 
 function openTableGameMenu(tableNo){
   arcadeTableNo=String(tableNo);
@@ -19,9 +99,9 @@ function hideArcadeResult(){
   overlay.classList.remove("is-win","is-loss","is-draw");
   arcadeRestartAction=null;
 }
-function cleanupArcade(){clearTimeout(arcadeTimer);arcadeTimer=null;arcadeOver=true;hideArcadeResult();cancelCoinToss();document.querySelector(".arcade-shell")?.classList.remove("arcade-pending-toss");arcadeEl("arcadeMarketSlot").classList.add("hidden");arcadeEl("arcadeMarketSlot").innerHTML=""}
+function cleanupArcade(){clearTimeout(arcadeTimer);arcadeTimer=null;arcadeOver=true;hideArcadeResult();closeWinStreakPopup();cancelLossRescue();clearArcadeTimeline();cancelCoinToss();document.querySelector(".arcade-shell")?.classList.remove("arcade-pending-toss");arcadeEl("arcadeMarketSlot").classList.add("hidden");arcadeEl("arcadeMarketSlot").innerHTML=""}
 function openArcade(mode){
-  arcadeMode=mode;currentGameMode=mode;arcadeOver=false;hideArcadeResult();
+  arcadeMode=mode;currentGameMode=mode;arcadeOver=false;hideArcadeResult();clearArcadeTimeline();
   arcadeEl("arcadePlayerLabel").textContent="Вы";
   arcadeEl("arcadeBotLabel").textContent=opponentName();
   arcadeEl("arcadePlayerScore").classList.remove("fives-score");
@@ -52,8 +132,24 @@ function setArcadeActions(buttons){
     arcadeEl("arcadeActions").appendChild(button);
   });
 }
-function finishArcade(win,message,restart){
+function finishArcade(win,message,restart,skipLossRescue=false){
+  if(win===false&&!skipLossRescue&&!arcadeResultRecorded){
+    arcadeOver=true;clearTimeout(arcadeTimer);arcadeTimer=null;
+    updateArcadeHistoryControls();
+    showLossRescueOffer({
+      gameLabel:arcadeNames[arcadeMode],
+      onDecline:()=>{arcadeOver=false;finishArcade(false,message,restart,true)},
+      onComplete:restart
+    });
+    return;
+  }
   arcadeOver=true;clearTimeout(arcadeTimer);
+  arcadeAnalysisMode=false;
+  updateArcadeHistoryControls();
+  if(!arcadeResultRecorded){
+    arcadeResultRecorded=true;
+    recordWinStreak(win===null?"draw":win?"win":"loss",arcadeNames[arcadeMode]);
+  }
   arcadeEl("arcadeStatus").textContent=win===null?"Ничья":win?"Вы победили!":`${opponentName()} победил`;
   arcadeEl("arcadeInfo").innerHTML=`<b>${message}</b>`;
   setArcadeActions([
@@ -67,6 +163,7 @@ function finishArcade(win,message,restart){
     :`${arcadeNames[arcadeMode]} · ${win?"победа":"поражение"}`;
   arcadeEl("arcadeResultTitle").textContent=win===null?"Ничья":win?"Вы победили!":"Вы проиграли";
   arcadeEl("arcadeResultMessage").textContent=message;
+  arcadeEl("arcadeAnalyzeButton").disabled=arcadeTimeline.length<2;
   overlay.classList.remove("hidden","is-win","is-loss","is-draw");
   overlay.classList.add(win===null?"is-draw":win?"is-win":"is-loss");
   requestAnimationFrame(()=>arcadeEl("arcadeReplayButton").focus());
@@ -79,7 +176,19 @@ arcadeEl("arcadeExit").addEventListener("click",exitArcade);
 arcadeEl("arcadeReplayButton").addEventListener("click",()=>{
   const restart=arcadeRestartAction||startChess;hideArcadeResult();restart();
 });
+arcadeEl("arcadeAnalyzeButton").addEventListener("click",()=>{
+  if(arcadeTimeline.length<2)return;
+  clearTimeout(arcadeTimer);arcadeTimer=null;
+  arcadeOver=false;arcadeAnalysisMode=true;arcadeHistoryReview=true;
+  restoreArcadePosition(arcadeTimeline[arcadeTimelineIndex]);
+  arcadeAnalysisMode=true;arcadeHistoryReview=true;updateArcadeHistoryControls();
+  arcadeEl("arcadeStatus").textContent="Анализ партии";
+  const hint=arcadeEl("arcadeHistoryHint");
+  hint.textContent="Первый результат сохранён. Вернитесь назад и выберите другое продолжение.";
+});
 arcadeEl("arcadeResultMenuButton").addEventListener("click",backToGameMenu);
+arcadeEl("arcadeHistoryBack").addEventListener("click",()=>stepArcadeHistory(-1));
+arcadeEl("arcadeHistoryForward").addEventListener("click",()=>stepArcadeHistory(1));
 postChat(arcadeEl("arcadeChatForm"),arcadeEl("arcadeChatInput"),arcadeEl("arcadeChatMessages"),true);
 document.querySelectorAll("[data-club-game]").forEach(button=>button.addEventListener("click",()=>{
   const mode=button.dataset.clubGame;
@@ -92,6 +201,7 @@ document.querySelectorAll("[data-club-game]").forEach(button=>button.addEventLis
 let cornerBoard,cornerTurn,cornerSelected,cornerChain,cornerLast;
 const cornerDirs=[-1,0,1].flatMap(dr=>[-1,0,1].map(dc=>[dr,dc])).filter(([dr,dc])=>dr||dc);
 function startCorners(){
+  arcadeResultRecorded=false;closeWinStreakPopup();
   cornerBoard=Array.from({length:8},()=>Array(8).fill(null));
   for(let r=0;r<3;r++)for(let c=0;c<3;c++)cornerBoard[r][c]="bot";
   for(let r=5;r<8;r++)for(let c=5;c<8;c++)cornerBoard[r][c]="player";
@@ -100,7 +210,7 @@ function startCorners(){
   setArcadeRules("Как играть","Переведите все девять фишек в противоположный угол. Можно ходить на соседнюю клетку или перепрыгивать через любую фишку. После прыжка разрешена цепочка прыжков.");
   arcadeEl("arcadeInfo").textContent="Ваша цель — верхний левый угол.";
   startMatchConversation(arcadeEl("arcadeChatMessages"),"corners");
-  setArcadeActions([]);renderCorners();
+  setArcadeActions([]);renderCorners();resetArcadeTimeline();
 }
 function cornerMoves(r,c,jumpsOnly=false,state=cornerBoard){
   const out=[];
@@ -129,7 +239,7 @@ function cornerClick(r,c){
   if(arcadeOver||cornerTurn!=="player")return;
   if(cornerSelected){
     const move=cornerMoves(...cornerSelected,Boolean(cornerChain)).find(item=>sameCell(item.to,[r,c]));
-    if(move){cornerApply(cornerSelected,move.to);cornerLast=move.to;
+    if(move){beginArcadeHistoryBranch();cornerApply(cornerSelected,move.to);cornerLast=move.to;
       if(move.jump)announceTechnique(cornerChain?"цепочка прыжков":"прыжок через фишку","player","так фишка быстрее проходит к противоположному углу");
       if(move.jump&&cornerMoves(r,c,true).length){cornerSelected=[r,c];cornerChain=true;renderCorners();setArcadeActions([{label:"Завершить цепочку",action:endCornerTurn,primary:true}]);return}
       endCornerTurn();return;
@@ -176,8 +286,8 @@ function cornerWon(color,state=cornerBoard){
 }
 function endCornerTurn(){
   setArcadeActions([]);cornerSelected=null;cornerChain=null;
-  if(cornerWon("player")){renderCorners();finishArcade(true,"Все ваши фишки заняли лагерь соперника.",startCorners);return}
-  cornerTurn="bot";renderCorners();arcadeTimer=setTimeout(cornerBotMove,380);
+  if(cornerWon("player")){renderCorners();pushArcadePosition();finishArcade(true,"Все ваши фишки заняли лагерь соперника.",startCorners);return}
+  cornerTurn="bot";renderCorners();pushArcadePosition();arcadeTimer=setTimeout(cornerBotMove,380);
 }
 function cornerBotMove(){
   if(arcadeOver)return;
@@ -205,14 +315,15 @@ function cornerBotMove(){
       if(!["V1","V2"].includes(level)&&Math.random()<.32)break;
     }
   }
-  if(cornerWon("bot")){renderCorners();finishArcade(false,`${opponentName()} первым занял ваш угол.`,startCorners);return}
-  cornerTurn="player";renderCorners();
+  if(cornerWon("bot")){renderCorners();pushArcadePosition();finishArcade(false,`${opponentName()} первым занял ваш угол.`,startCorners);return}
+  cornerTurn="player";renderCorners();pushArcadePosition();
 }
 
 /* ---------- Chess ---------- */
 let chessBoard,chessTurn,chessSelected,chessLastMove,chessHistory,chessHalfmove,chessPlayerColor="white",chessBotColor="black";
 const chessSymbols={white:{k:"♔",q:"♕",r:"♖",b:"♗",n:"♘",p:"♙"},black:{k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"}};
 function startChess(){
+  arcadeResultRecorded=false;closeWinStreakPopup();
   hideArcadeResult();cancelCoinToss();clearTimeout(arcadeTimer);arcadeOver=true;
   document.querySelector(".arcade-shell")?.classList.add("arcade-pending-toss");
   arcadeEl("arcadeInfo").textContent="Сначала разыграем цвет фигур и первый ход.";
@@ -231,7 +342,7 @@ function initializeChess(color){
   setArcadeRules("Полные шахматы","Мат королю завершает игру. Доступны рокировка, взятие на проходе и автоматическое превращение пешки в ферзя. Пат считается ничьёй.");
   arcadeEl("arcadeInfo").textContent=color==="white"?"Решка: вы играете белыми и ходите первой.":`Орёл: вы играете чёрными. ${opponentName()} начинает белыми.`;
   document.querySelector(".arcade-shell")?.classList.remove("arcade-pending-toss");
-  setArcadeActions([]);renderChess();
+  setArcadeActions([]);renderChess();resetArcadeTimeline();
   if(chessTurn===chessBotColor)arcadeTimer=setTimeout(chessBotMove,520);
 }
 function cloneChess(state){return state.map(row=>row.map(piece=>piece?{...piece}:null))}
@@ -330,6 +441,7 @@ function chessClick(r,c){
   chessSelected=chessBoard[r][c]?.color===chessPlayerColor?[r,c]:null;renderChess();
 }
 function playChessMove(move){
+  beginArcadeHistoryBranch();
   const piece=chessBoard[move.from[0]][move.from[1]],isCapture=Boolean(chessBoard[move.to[0]][move.to[1]]||move.enPassant);
   chessBoard=chessApply(move);chessLastMove={...move,piece:piece.type,color:piece.color};chessSelected=null;chessTurn=piece.color==="white"?"black":"white";
   const attackedPieces=chessPseudo(move.to[0],move.to[1],chessBoard,true)
@@ -341,7 +453,7 @@ function playChessMove(move){
   else if(chessInCheck(chessTurn,chessBoard)){technique="шах";reason="королю приходится немедленно отвечать на угрозу";}
   else if(move.enPassant){technique="взятие на проходе";reason="используется особое право немедленного взятия пешки";}
   if(technique)announceTechnique(technique,piece.color===chessPlayerColor?"player":"opponent",reason);
-  chessHalfmove=piece.type==="p"||isCapture?0:chessHalfmove+1;chessHistory.push(chessHash(chessBoard,chessTurn));renderChess();
+  chessHalfmove=piece.type==="p"||isCapture?0:chessHalfmove+1;chessHistory.push(chessHash(chessBoard,chessTurn));renderChess();pushArcadePosition();
   if(chessEnd())return;if(chessTurn===chessBotColor)arcadeTimer=setTimeout(chessBotMove,420);
 }
 function chessValue(state){const values={p:100,n:320,b:330,r:500,q:900,k:20000};return state.flat().reduce((sum,p)=>sum+(p?(p.color===chessBotColor?1:-1)*values[p.type]:0),0)}
@@ -438,6 +550,7 @@ function finishFivesMatch(winner,reason){
   );
 }
 function startDomino(fives=false,keepScore=false,forcedStarter=null){
+  if(!keepScore){arcadeResultRecorded=false;closeWinStreakPopup()}
   const score=keepScore&&domino?domino.score:{player:0,bot:0};
   const fiveCounts=keepScore&&domino?domino.fiveCounts:{player:0,bot:0};
   const eggs=keepScore&&domino&&!fives?domino.eggs:0;
@@ -458,7 +571,7 @@ function startDomino(fives=false,keepScore=false,forcedStarter=null){
     runCoinToss("Домино «Пятёрочки»",({starter})=>{
       domino.turn=starter;arcadeOver=false;
       document.querySelector(".arcade-shell")?.classList.remove("arcade-pending-toss");
-      renderDomino();
+      renderDomino();resetArcadeTimeline();
       if(domino.turn==="bot")arcadeTimer=setTimeout(dominoBot,430);
     },"firstMove");
     return;
@@ -470,7 +583,7 @@ function startDomino(fives=false,keepScore=false,forcedStarter=null){
   domino.chain.push(openingTile);
   domino.turn=opener.who==="player"?"bot":"player";
   arcadeOver=false;
-  setArcadeActions([]);renderDomino();if(domino.turn==="bot")arcadeTimer=setTimeout(dominoBot,430);
+  setArcadeActions([]);renderDomino();resetArcadeTimeline();if(domino.turn==="bot")arcadeTimer=setTimeout(dominoBot,430);
 }
 function dominoSides(tile){
   if(!domino.chain.length)return["right"];const left=domino.chain[0][0],right=domino.chain.at(-1)[1],sides=[],homePriority=[];
@@ -679,6 +792,7 @@ function dominoOpenEndsText(){
   return ends.join(" + ");
 }
 function dominoPlay(who,index,side){
+  beginArcadeHistoryBranch();
   const hand=domino[who],tile=hand.splice(index,1)[0],placed=orientDomino(tile,side);
   placed._dominoId=++domino.tileSeq;
   if(side==="left")domino.chain.unshift(placed);
@@ -698,20 +812,21 @@ function dominoPlay(who,index,side){
     }
     if(technique)announceTechnique(technique,who==="player"?"player":"opponent",reason);
     if(domino.score[who]>=100){
+      pushArcadePosition();
       finishFivesMatch(who,who==="player"?"Вы первыми набрали 100 очков.":`${opponentName()} первым набрал 100 очков.`);
       return;
     }
   }else if(technique)announceTechnique(technique,who==="player"?"player":"opponent",reason);
-  if(!hand.length){dominoRoundEnd(who);return}
-  domino.turn=who==="player"?"bot":"player";renderDomino();if(domino.turn==="bot")arcadeTimer=setTimeout(dominoBot,430);
+  if(!hand.length){pushArcadePosition();dominoRoundEnd(who);return}
+  domino.turn=who==="player"?"bot":"player";renderDomino();pushArcadePosition();if(domino.turn==="bot")arcadeTimer=setTimeout(dominoBot,430);
 }
 function dominoDraw(){
   if(arcadeOver||domino.turn!=="player"||!domino.stock.length||domino.player.some(tile=>dominoSides(tile).length))return;
-  domino.player.push(domino.stock.pop());domino.pending=null;renderDomino();
+  beginArcadeHistoryBranch();domino.player.push(domino.stock.pop());domino.pending=null;renderDomino();pushArcadePosition();
 }
 function dominoPass(who){
-  domino.passes++;if(domino.passes>=2){const pp=domino.player.flat().reduce((a,b)=>a+b,0),bp=domino.bot.flat().reduce((a,b)=>a+b,0);dominoRoundEnd(pp===bp?null:pp<bp?"player":"bot");return}
-  domino.turn=who==="player"?"bot":"player";renderDomino();if(domino.turn==="bot")arcadeTimer=setTimeout(dominoBot,350);
+  beginArcadeHistoryBranch();domino.passes++;if(domino.passes>=2){const pp=domino.player.flat().reduce((a,b)=>a+b,0),bp=domino.bot.flat().reduce((a,b)=>a+b,0);pushArcadePosition();dominoRoundEnd(pp===bp?null:pp<bp?"player":"bot");return}
+  domino.turn=who==="player"?"bot":"player";renderDomino();pushArcadePosition();if(domino.turn==="bot")arcadeTimer=setTimeout(dominoBot,350);
 }
 function dominoProjectedEnds(tile,side,placed){
   const endpoint=piece=>piece[1]*(piece[0]===piece[1]?2:1);
@@ -788,6 +903,7 @@ function dominoRoundEnd(winner){
       return;
     }
     arcadeOver=true;
+    updateArcadeHistoryControls();
     arcadeEl("arcadeStatus").textContent=winner?`Раунд выиграл ${winner==="player"?"игрок":opponentName()}`:"Раунд завершён вничью";
     arcadeEl("arcadeInfo").insertAdjacentHTML("beforeend",`<span class="round-summary"><b>${summary}</b></span>`);
     setArcadeActions([{label:"Следующий раунд",action:()=>startDomino(true,true),primary:true},{label:"Выбрать игру",action:backToGameMenu}]);
@@ -816,6 +932,7 @@ function dominoRoundEnd(winner){
     return;
   }
   arcadeOver=true;
+  updateArcadeHistoryControls();
   if(winner===null){
     arcadeEl("arcadeStatus").textContent="Равная «рыба» — яйца";
     arcadeEl("arcadeInfo").insertAdjacentHTML("beforeend",`<span class="round-summary"><b>Суммы равны: записан 0 — «яйцо» №${domino.eggs}. Следующий штраф будет ×${domino.eggs+1}.</b></span>`);

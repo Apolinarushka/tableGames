@@ -5,7 +5,8 @@ const profile = JSON.parse(localStorage.getItem("quietMoveProfile") || "null") |
   name: "Гость", clothes: "#c84a42", hair: "#34261f", skin: "#d9a77f",
   hairStyle: "hair-wave", faceStyle: "face-smile", rating: 1000, games: []
 };
-profile.skin ||= "#d9a77f"; profile.hairStyle ||= "hair-wave"; profile.faceStyle ||= "face-smile"; profile.botLevel ||= "B1";
+profile.skin ||= "#d9a77f"; profile.hairStyle ||= "hair-wave"; profile.faceStyle ||= "face-smile"; profile.mustacheStyle ||= "mustache-none"; profile.botLevel ||= "B1";
+if (!["mustache-none","mustache-thin","mustache-classic","mustache-handlebar"].includes(profile.mustacheStyle)) profile.mustacheStyle = "mustache-none";
 profile.city ||= "";
 profile.birthDate ||= "";
 profile.interests = Array.isArray(profile.interests) ? profile.interests : [];
@@ -14,6 +15,8 @@ profile.activityFrom ||= "18:00";
 profile.activityTo ||= "23:00";
 profile.photo ||= "";
 profile.authProvider ||= "";
+profile.winStreak = Math.max(0, Number(profile.winStreak) || 0);
+profile.bestWinStreak = Math.max(profile.winStreak, Number(profile.bestWinStreak) || 0);
 const clothesColorUpgrade = {
   "#a44b36": "#c84a42",
   "#315f75": "#3099cb",
@@ -26,6 +29,7 @@ if (!["#c84a42", "#e0782f", "#d7ad32", "#339565", "#3099cb", "#7b4bb7"].includes
 }
 let pos = { x: 50, y: 84 }, targetPos = null, arrivalCallback = null, nearTable = null, nearBulletin = false, soundOn = true, audioCtx;
 let board = [], turn = "white", selected = null, chainPiece = null, seconds = 60, timerId, gameOver = false, moveHistory = [], activeOpeningName = null, announcedOpeningName = null, announcedEndgameClass = null;
+let checkersTimeline = [], checkersTimelineIndex = -1, checkersHistoryReview = false, checkersAnalysisMode = false, checkersResultRecorded = false, gameActionGeneration = 0;
 let playerPieceColor = "white", coinTossRun = 0, pendingCoinStart = null;
 let currentGameMode = "checkers";
 let seatingInProgress = false, activeSeat = null, currentTableNo = "05";
@@ -429,19 +433,140 @@ function syncProfileEditor() {
 function saveProfile() {
   localStorage.setItem("quietMoveProfile", JSON.stringify(profile));
 }
+function victoryCountLabel(count) {
+  const mod100=count%100,mod10=count%10;
+  const word=mod100>=11&&mod100<=14?"побед":mod10===1?"победа":mod10>=2&&mod10<=4?"победы":"побед";
+  return `${count} ${word}`;
+}
+function closeWinStreakPopup() {
+  $("#winStreakPopup").classList.add("hidden");
+}
+function showWinStreakPopup(outcome,previousStreak,gameLabel) {
+  const popup=$("#winStreakPopup"),track=$("#winStreakTrack");
+  $("#winStreakGame").textContent=`${gameLabel} · серия клуба`;
+  track.innerHTML=Array.from({length:10},(_,index)=>
+    `<i class="win-streak-node ${index<Math.min(profile.winStreak,10)?"active":""}" style="animation-delay:${index*35}ms"></i>`
+  ).join("");
+  $("#winStreakCurrent").textContent=victoryCountLabel(profile.winStreak);
+  $("#winStreakBest").textContent=victoryCountLabel(profile.bestWinStreak);
+  if(outcome==="win"){
+    $("#winStreakTitle").textContent=profile.winStreak>=5?"Победная серия!":"Цепочка побед";
+    $("#winStreakMessage").textContent=profile.winStreak===1
+      ?"Начало положено! Победите ещё раз, чтобы продолжить цепочку."
+      :profile.winStreak<5
+        ?`${victoryCountLabel(profile.winStreak)} подряд. Сохраните темп и продлите серию!`
+        :`${victoryCountLabel(profile.winStreak)} подряд — великолепный результат! Следующая победа сделает серию ещё сильнее.`;
+  }else if(outcome==="loss"){
+    $("#winStreakTitle").textContent="Новая серия начинается";
+    $("#winStreakMessage").textContent=previousStreak
+      ?`Цепочка из ${victoryCountLabel(previousStreak)} завершилась. Следующая победа станет первым звеном новой серии.`
+      :"Сегодня серия не началась, но следующая победа станет её первым звеном.";
+  }else{
+    $("#winStreakTitle").textContent="Серия сохранена";
+    $("#winStreakMessage").textContent=profile.winStreak
+      ?`Ничья не прервала цепочку: у вас по-прежнему ${victoryCountLabel(profile.winStreak)} подряд.`
+      :"Ничья не считается поражением. Начните цепочку следующей победой!";
+  }
+  popup.classList.remove("hidden");
+  requestAnimationFrame(()=>$("#winStreakContinue").focus());
+}
+function recordWinStreak(outcome,gameLabel) {
+  const previousStreak=profile.winStreak;
+  if(outcome==="win")profile.winStreak++;
+  else if(outcome==="loss")profile.winStreak=0;
+  profile.bestWinStreak=Math.max(profile.bestWinStreak,profile.winStreak);
+  saveProfile();
+  setTimeout(()=>showWinStreakPopup(outcome,previousStreak,gameLabel),90);
+}
+let pendingLossRescue=null;
+function hideLossRescueOffer() {
+  $("#lossRescuePopup").classList.add("hidden");
+}
+function stopRescueVideo() {
+  const video=$("#rescueVideo");
+  video.pause();video.currentTime=0;video.controls=false;
+  $("#rescueVideoOverlay").classList.add("hidden");
+}
+function cancelLossRescue() {
+  pendingLossRescue=null;hideLossRescueOffer();stopRescueVideo();
+}
+function showLossRescueOffer({gameLabel,onDecline,onComplete}) {
+  closeWinStreakPopup();hideResultOverlay();
+  if(typeof hideArcadeResult==="function")hideArcadeResult();
+  pendingLossRescue={onDecline,onComplete};
+  $("#lossRescueGame").textContent=`${gameLabel} · защита серии`;
+  $("#lossRescueStreak").textContent=victoryCountLabel(profile.winStreak);
+  $("#lossRescuePopup").classList.remove("hidden");
+  requestAnimationFrame(()=>$("#watchRescueVideo").focus());
+}
+function declineLossRescue() {
+  const action=pendingLossRescue?.onDecline;
+  pendingLossRescue=null;hideLossRescueOffer();
+  action?.();
+}
+function startRescueVideo() {
+  if(!pendingLossRescue)return;
+  hideLossRescueOffer();
+  const video=$("#rescueVideo");
+  video.controls=false;video.currentTime=0;video.muted=false;
+  $("#rescueVideoMute").setAttribute("aria-pressed","false");
+  $("#rescueVideoMute").textContent="🔊 Отключить звук";
+  $("#rescueVideoProgress").textContent="Видео начинается…";
+  $("#rescueVideoOverlay").classList.remove("hidden");
+  const playback=video.play();
+  if(playback)playback.catch(()=>{
+    video.controls=true;
+    $("#rescueVideoProgress").textContent="Нажмите кнопку воспроизведения, чтобы продолжить.";
+  });
+}
+function completeLossRescue() {
+  const action=pendingLossRescue?.onComplete;
+  pendingLossRescue=null;stopRescueVideo();
+  action?.();
+}
+$("#watchRescueVideo").addEventListener("click",startRescueVideo);
+$("#declineRescueVideo").addEventListener("click",declineLossRescue);
+$("#rescueVideoMute").addEventListener("click",()=>{
+  const video=$("#rescueVideo");
+  video.muted=!video.muted;
+  $("#rescueVideoMute").setAttribute("aria-pressed",String(video.muted));
+  $("#rescueVideoMute").textContent=video.muted?"🔇 Включить звук":"🔊 Отключить звук";
+});
+$("#rescueVideo").addEventListener("timeupdate",()=>{
+  const video=$("#rescueVideo");
+  if(!Number.isFinite(video.duration))return;
+  const remaining=Math.max(0,Math.ceil(video.duration-video.currentTime));
+  const minutes=Math.floor(remaining/60),seconds=String(remaining%60).padStart(2,"0");
+  $("#rescueVideoProgress").textContent=`До новой партии: ${minutes}:${seconds}`;
+});
+$("#rescueVideo").addEventListener("ended",completeLossRescue);
+$("#winStreakClose").addEventListener("click",closeWinStreakPopup);
+$("#winStreakContinue").addEventListener("click",closeWinStreakPopup);
+document.addEventListener("keydown",event=>{
+  if(event.key==="Escape"&&(
+    !$("#lossRescuePopup").classList.contains("hidden")||
+    !$("#rescueVideoOverlay").classList.contains("hidden")
+  )){
+    event.preventDefault();event.stopImmediatePropagation();return;
+  }
+  if(event.key==="Escape"&&!$("#winStreakPopup").classList.contains("hidden")){
+    event.preventDefault();event.stopImmediatePropagation();closeWinStreakPopup();
+  }
+});
 function applyProfile() {
   document.documentElement.style.setProperty("--clothes", profile.clothes);
   document.documentElement.style.setProperty("--hair", profile.hair);
   document.documentElement.style.setProperty("--skin", profile.skin);
   $$("#character, #avatarPreview").forEach(el => {
-    [...el.classList].filter(c => c.startsWith("hair-") || c.startsWith("face-")).forEach(c => el.classList.remove(c));
-    el.classList.add(profile.hairStyle, profile.faceStyle);
+    [...el.classList].filter(c => c.startsWith("hair-") || c.startsWith("face-") || c.startsWith("mustache-")).forEach(c => el.classList.remove(c));
+    el.classList.add(profile.hairStyle, profile.faceStyle, profile.mustacheStyle);
   });
   $$("#clothesSwatches button").forEach(b => b.classList.toggle("selected", b.dataset.color === profile.clothes));
   $$("#hairSwatches button").forEach(b => b.classList.toggle("selected", b.dataset.color === profile.hair));
   $$("#skinSwatches button").forEach(b => b.classList.toggle("selected", b.dataset.color === profile.skin));
   $$("#hairStyles button").forEach(b => b.classList.toggle("selected", b.dataset.style === profile.hairStyle));
   $$("#faceStyles button").forEach(b => b.classList.toggle("selected", b.dataset.style === profile.faceStyle));
+  $$("#mustacheStyles button").forEach(b => b.classList.toggle("selected", b.dataset.style === profile.mustacheStyle));
   $("#profileName").textContent = profile.name;
   $("#playerLabel").textContent = profile.name;
   $("#rating").textContent = profile.rating;
@@ -626,7 +751,7 @@ function setupChoices(id, prefix) {
     });
   }));
 }
-setupChoices("hairStyles", "hair-"); setupChoices("faceStyles", "face-");
+setupChoices("hairStyles", "hair-"); setupChoices("faceStyles", "face-"); setupChoices("mustacheStyles", "mustache-");
 function resizeProfilePhoto(file,maxSize=512) {
   return new Promise((resolve,reject)=>{
     if(!file.type.startsWith("image/")){reject(new Error("Выберите изображение"));return}
@@ -688,6 +813,7 @@ $("#saveAvatar").addEventListener("click", e => {
   profile.skin = $("#skinSwatches .selected").dataset.color;
   profile.hairStyle = $("#hairStyles .selected").dataset.style;
   profile.faceStyle = $("#faceStyles .selected").dataset.style;
+  profile.mustacheStyle = $("#mustacheStyles .selected").dataset.style;
   saveProfile(); applyProfile(); $("#customizer").close(); toast(`Анкета ${profile.name} сохранена`);
 });
 
@@ -1254,7 +1380,7 @@ function handleCell(e) {
   if(turn!=="white"||gameOver)return;
   const r=+e.currentTarget.dataset.r,c=+e.currentTarget.dataset.c, moves=allMoves("white").filter(m=>!chainPiece||m.from.join()===chainPiece.join());
   const chosen=selected&&moves.find(m=>m.from.join()===selected.join()&&m.to[0]===r&&m.to[1]===c);
-  if(chosen){performMove(chosen);return}
+  if(chosen){beginCheckersHistoryBranch();performMove(chosen);return}
   if(board[r][c]?.color==="white"&&moves.some(m=>m.from[0]===r&&m.from[1]===c)){selected=[r,c];beep(330,.04)}
   else selected=null;
   renderBoard();
@@ -1279,6 +1405,122 @@ function renderMoveHistory() {
     </div>
   `).join("");
   list.scrollTop = list.scrollHeight;
+}
+function updateCheckersHistoryControls() {
+  const back = $("#historyBack"), forward = $("#historyForward");
+  if (!back || !forward) return;
+  const last = Math.max(0, checkersTimeline.length - 1);
+  const position = Math.max(0, checkersTimelineIndex);
+  back.disabled = checkersTimelineIndex <= 0 || gameOver;
+  forward.disabled = checkersTimelineIndex < 0 || checkersTimelineIndex >= checkersTimeline.length - 1 || gameOver;
+  $("#historyPosition").textContent = `Ход ${position} из ${last}`;
+  const hint = $("#historyHint");
+  hint.classList.toggle("is-reviewing", checkersHistoryReview);
+  hint.textContent = checkersHistoryReview
+    ? "Просмотр позиции: часы и бот на паузе. Сделайте свой ход, чтобы создать новое продолжение."
+    : "Вернитесь к позиции и сделайте другой ход, чтобы переиграть партию.";
+}
+function cancelScheduledGameActions() {
+  gameActionGeneration++;
+}
+function scheduleGameAction(action, delay) {
+  const generation = gameActionGeneration;
+  setTimeout(() => {
+    if (generation === gameActionGeneration && !gameOver) action();
+  }, delay);
+}
+function cloneCheckersBoard(state) {
+  return state.map(row => row.map(piece => piece ? {...piece} : null));
+}
+function captureCheckersPosition() {
+  return {
+    board: cloneCheckersBoard(board),
+    turn,
+    selected: selected ? [...selected] : null,
+    chainPiece: chainPiece ? [...chainPiece] : null,
+    seconds,
+    moveHistory: moveHistory.map(item => ({...item})),
+    activeOpeningName,
+    announcedOpeningName,
+    announcedEndgameClass
+  };
+}
+function pushCheckersPosition() {
+  if (checkersTimelineIndex < checkersTimeline.length - 1) {
+    checkersTimeline = checkersTimeline.slice(0, checkersTimelineIndex + 1);
+  }
+  checkersTimeline.push(captureCheckersPosition());
+  checkersTimelineIndex = checkersTimeline.length - 1;
+  checkersHistoryReview = false;
+  updateCheckersHistoryControls();
+}
+function resetCheckersTimeline() {
+  checkersTimeline = [];
+  checkersTimelineIndex = -1;
+  checkersHistoryReview = false;
+  checkersAnalysisMode = false;
+  pushCheckersPosition();
+}
+function clearCheckersTimeline() {
+  checkersTimeline = [];
+  checkersTimelineIndex = -1;
+  checkersHistoryReview = false;
+  checkersAnalysisMode = false;
+  updateCheckersHistoryControls();
+}
+function restoreCheckersPosition(snapshot) {
+  cancelScheduledGameActions();
+  clearInterval(timerId);
+  hideResultOverlay();
+  board = cloneCheckersBoard(snapshot.board);
+  turn = snapshot.turn;
+  selected = snapshot.selected ? [...snapshot.selected] : null;
+  chainPiece = snapshot.chainPiece ? [...snapshot.chainPiece] : null;
+  seconds = snapshot.seconds;
+  moveHistory = snapshot.moveHistory.map(item => ({...item}));
+  activeOpeningName = snapshot.activeOpeningName;
+  announcedOpeningName = snapshot.announcedOpeningName;
+  announcedEndgameClass = snapshot.announcedEndgameClass;
+  gameOver = false;
+  renderBoard();
+  renderMoveHistory();
+  updateTimer();
+  updateTurn();
+}
+function startCheckersClock() {
+  clearInterval(timerId);
+  timerId = setInterval(() => {
+    if(gameOver || checkersHistoryReview)return;
+    seconds--;updateTimer();
+    if(seconds<=0){if(turn==="white")finishGame("loss");else{turn="white";resetTimer();updateTurn();renderBoard();pushCheckersPosition()}}
+  },1000);
+}
+function resumeCheckersFromLatest() {
+  checkersHistoryReview = false;
+  updateCheckersHistoryControls();
+  startCheckersClock();
+  scheduleGameAction(checkEnd, 120);
+  if(turn==="black")scheduleGameAction(botMove, 420);
+}
+function stepCheckersHistory(direction) {
+  const next = checkersTimelineIndex + direction;
+  if(next < 0 || next >= checkersTimeline.length || gameOver)return;
+  checkersTimelineIndex = next;
+  checkersHistoryReview = checkersAnalysisMode || next < checkersTimeline.length - 1;
+  restoreCheckersPosition(checkersTimeline[next]);
+  if(checkersHistoryReview)updateCheckersHistoryControls();
+  else resumeCheckersFromLatest();
+}
+function beginCheckersHistoryBranch() {
+  if(!checkersHistoryReview)return;
+  cancelScheduledGameActions();
+  checkersTimeline = checkersTimeline.slice(0, checkersTimelineIndex + 1);
+  checkersHistoryReview = false;
+  checkersAnalysisMode = false;
+  gameOver = false;
+  hideResultOverlay();
+  startCheckersClock();
+  updateCheckersHistoryControls();
 }
 function recordMove(m,color,continuation,promoted) {
   const now = new Date();
@@ -1320,11 +1562,11 @@ function performMove(m) {
   if(m.capture&&capturesFrom(m.to[0],m.to[1]).length){
     chainPiece=m.to;selected=m.to;renderBoard();playMoveAnimation(animation,m.to);
     $("#gameTip").textContent=p.color==="white"?"Продолжите взятие этой же шашкой.":`${opponentName()} продолжает взятие…`;
-    if(p.color==="black")setTimeout(botMove,420);
+    if(p.color==="black")scheduleGameAction(botMove,420);
     return
   }
-  chainPiece=null;selected=null;turn=p.color==="white"?"black":"white";resetTimer();renderBoard();playMoveAnimation(animation,m.to);updateTurn();
-  setTimeout(checkEnd,150);if(turn==="black"&&!gameOver)setTimeout(botMove,550);
+  chainPiece=null;selected=null;turn=p.color==="white"?"black":"white";resetTimer();renderBoard();playMoveAnimation(animation,m.to);updateTurn();pushCheckersPosition();
+  scheduleGameAction(checkEnd,150);if(turn==="black"&&!gameOver)scheduleGameAction(botMove,550);
 }
 function simulateMove(state,m) {
   const next=state.map(row=>row.map(piece=>piece?{...piece}:null));
@@ -1872,7 +2114,7 @@ function updateTimer(){
   $("#timer").textContent=`0:${String(seconds).padStart(2,"0")}`;
   $("#timerFill").style.transform=`scaleX(${seconds/60})`;
 }
-function showResultOverlay(win,delta) {
+function showResultOverlay(win,delta,firstResult=true) {
   const overlay=$("#resultOverlay");
   overlay.classList.remove("hidden","is-win","is-loss");
   overlay.classList.add(win?"is-win":"is-loss");
@@ -1881,12 +2123,15 @@ function showResultOverlay(win,delta) {
   let message=win
     ?"Кубок этой партии ваш. Закрепите успех в новой игре!"
     :"Не расстраивайтесь — следующая партия уже может стать победной.";
-  if(profile.games.length===10){
+  if(firstResult&&profile.games.length===10){
     const tier=calculatePlayerTier();
     message+=` Вы завершили 10 партий — вам присвоен уровень ${tierLabels[tier]}.`;
   }
+  if(!firstResult)message+=" Это учебное продолжение: в рейтинге и таблице остаётся первый результат партии.";
   $("#resultMessage").textContent=message;
+  $(".result-rating span").textContent=firstResult?"Изменение рейтинга":"Первый результат уже учтён";
   $("#resultDelta").textContent=`${delta>0?"+":""}${delta}`;
+  $("#analyzeGameButton").disabled=checkersTimeline.length<2;
   requestAnimationFrame(()=>$("#replayButton").focus());
 }
 function hideResultOverlay() {
@@ -1903,18 +2148,49 @@ function checkEnd(){
     else if(!white||!allMoves("white").length)finishGame("loss");
   }
 }
-function finishGame(result){
+function finishGame(result,skipLossRescue=false){
   if(gameOver)return;gameOver=true;clearInterval(timerId);
-  const win=result==="win",delta=win?18:-12;profile.rating=Math.max(0,profile.rating+delta);
-  profile.games.push({result:win?"Победа":"Поражение",opponent:opponentName(),date:new Date().toLocaleDateString("ru-RU"),delta});
-  recordTournamentResult(win?2:0);
-  saveProfile();applyProfile();$("#turnText").textContent=win?"Победа!":"Партия окончена";
-  $("#gameTip").textContent=win?`Рейтинг +${delta}. Отличная партия.`:`Рейтинг ${delta}. Попробуйте ещё раз.`;
+  if(result==="loss"&&!skipLossRescue&&!checkersResultRecorded){
+    cancelScheduledGameActions();updateCheckersHistoryControls();
+    const rescueTable=currentTableNo,rescueMode=currentGameMode;
+    $("#turnText").textContent="Можно сохранить серию";
+    $("#gameTip").textContent="Посмотрите короткое видео — результат партии не будет учтён.";
+    showLossRescueOffer({
+      gameLabel:rescueMode==="giveaway"?"Поддавки":"Русские шашки",
+      onDecline:()=>{gameOver=false;finishGame("loss",true)},
+      onComplete:()=>startGame(rescueTable,rescueMode)
+    });
+    return;
+  }
+  cancelScheduledGameActions();checkersAnalysisMode=false;updateCheckersHistoryControls();
+  const win=result==="win",firstResult=!checkersResultRecorded;
+  let delta=0;
+  if(firstResult){
+    delta=win?18:-12;profile.rating=Math.max(0,profile.rating+delta);
+    profile.games.push({result:win?"Победа":"Поражение",opponent:opponentName(),date:new Date().toLocaleDateString("ru-RU"),delta});
+    recordTournamentResult(win?2:0);
+    saveProfile();applyProfile();checkersResultRecorded=true;
+    recordWinStreak(win?"win":"loss",currentGameMode==="giveaway"?"Поддавки":"Русские шашки");
+  }
+  $("#turnText").textContent=win?"Победа!":"Партия окончена";
+  $("#gameTip").textContent=firstResult
+    ?win?`Рейтинг +${delta}. Отличная партия.`:`Рейтинг ${delta}. Попробуйте ещё раз.`
+    :"Учебное продолжение завершено. В таблице сохранён первый результат.";
   beep(win?540:120,.35);
-  showResultOverlay(win,delta);
+  showResultOverlay(win,delta,firstResult);
+}
+function openCheckersAnalysis(){
+  if(checkersTimeline.length<2)return;
+  clearInterval(timerId);cancelScheduledGameActions();hideResultOverlay();
+  gameOver=false;checkersAnalysisMode=true;checkersHistoryReview=true;
+  selected=null;chainPiece=null;renderBoard();renderMoveHistory();updateCheckersHistoryControls();
+  $("#turnText").textContent="Анализ партии";
+  $("#gameTip").textContent="Используйте «Шаг назад» и выберите другое продолжение. Первый результат уже сохранён.";
 }
 function startGame(tableNo,mode="checkers"){
-  currentTableNo=String(tableNo);currentGameMode=mode;hideResultOverlay();setActiveOpponent(activeOpponentId);updateDifficultyUI();cancelCoinToss();
+  currentTableNo=String(tableNo);currentGameMode=mode;hideResultOverlay();closeWinStreakPopup();cancelLossRescue();setActiveOpponent(activeOpponentId);updateDifficultyUI();cancelCoinToss();
+  cancelScheduledGameActions();clearCheckersTimeline();
+  checkersResultRecorded=false;checkersAnalysisMode=false;
   resetYuliaConversation("game");
   resetInnokentiyConversation("game");
   resetOlesyaConversation("game");
@@ -1937,21 +2213,22 @@ function startGame(tableNo,mode="checkers"){
         ?"Решка: вы играете белыми и ходите первой."
         :`Орёл: вы играете чёрными. Первый ход делает ${opponentName()} белыми.`
     );
-    timerId=setInterval(()=>{
-      if(gameOver)return;seconds--;updateTimer();
-      if(seconds<=0){if(turn==="white")finishGame("loss");else{turn="white";resetTimer();updateTurn();renderBoard()}}
-    },1000);
-    if(turn==="black")setTimeout(botMove,520);
+    resetCheckersTimeline();
+    startCheckersClock();
+    if(turn==="black")scheduleGameAction(botMove,520);
   });
 }
 function exitGameToClub(){
-  clearInterval(timerId);hideResultOverlay();cancelCoinToss();$(".game-shell").classList.remove("game-pending-toss");
+  clearInterval(timerId);cancelScheduledGameActions();clearCheckersTimeline();hideResultOverlay();closeWinStreakPopup();cancelLossRescue();cancelCoinToss();$(".game-shell").classList.remove("game-pending-toss");
   if($("#gameDialog").open)$("#gameDialog").close();
   leaveSeat();toast("Вы вернулись в клуб");
 }
 $("#leaveGame").addEventListener("click",exitGameToClub);
 $("#resultExitButton").addEventListener("click",exitGameToClub);
 $("#replayButton").addEventListener("click",()=>startGame(currentTableNo,currentGameMode));
+$("#analyzeGameButton").addEventListener("click",openCheckersAnalysis);
+$("#historyBack").addEventListener("click",()=>stepCheckersHistory(-1));
+$("#historyForward").addEventListener("click",()=>stepCheckersHistory(1));
 $("#soundButton").addEventListener("click",()=>{soundOn=!soundOn;$("#soundButton").textContent=`Звук: ${soundOn?"вкл.":"выкл."}`;if(soundOn)beep(400)});
 
 applyProfile(); detectTable();

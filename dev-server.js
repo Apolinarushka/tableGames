@@ -10,7 +10,7 @@ const ignoredDirectories = new Set([".git", ".idea", "node_modules"]);
 const watchedExtensions = new Set([
   ".html", ".css", ".js", ".json",
   ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".ico",
-  ".wav", ".mp3", ".ogg"
+  ".wav", ".mp3", ".ogg", ".mp4"
 ]);
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -26,7 +26,8 @@ const types = {
   ".ico": "image/x-icon",
   ".wav": "audio/wav",
   ".mp3": "audio/mpeg",
-  ".ogg": "audio/ogg"
+  ".ogg": "audio/ogg",
+  ".mp4": "video/mp4"
 };
 
 const reloadClient = `<script>
@@ -93,6 +94,50 @@ const server = http.createServer((request, response) => {
     return;
   }
 
+  const extension = path.extname(file).toLowerCase();
+  if (extension === ".mp4") {
+    fs.stat(file, (error, stats) => {
+      if (error || !stats.isFile()) {
+        response.writeHead(404);
+        response.end("Not found");
+        return;
+      }
+      const range = request.headers.range;
+      const commonHeaders = {
+        "Content-Type": "video/mp4",
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "no-store"
+      };
+      if (!range) {
+        response.writeHead(200, {...commonHeaders, "Content-Length": stats.size});
+        if (request.method === "HEAD") response.end();
+        else fs.createReadStream(file).pipe(response);
+        return;
+      }
+      const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+      if (!match) {
+        response.writeHead(416, {"Content-Range": `bytes */${stats.size}`});
+        response.end();
+        return;
+      }
+      const start = match[1] ? Number(match[1]) : 0;
+      const end = match[2] ? Math.min(Number(match[2]), stats.size - 1) : stats.size - 1;
+      if (start > end || start >= stats.size) {
+        response.writeHead(416, {"Content-Range": `bytes */${stats.size}`});
+        response.end();
+        return;
+      }
+      response.writeHead(206, {
+        ...commonHeaders,
+        "Content-Length": end - start + 1,
+        "Content-Range": `bytes ${start}-${end}/${stats.size}`
+      });
+      if (request.method === "HEAD") response.end();
+      else fs.createReadStream(file, {start, end}).pipe(response);
+    });
+    return;
+  }
+
   fs.readFile(file, (error, data) => {
     if (error) {
       response.writeHead(404);
@@ -100,7 +145,6 @@ const server = http.createServer((request, response) => {
       return;
     }
 
-    const extension = path.extname(file).toLowerCase();
     if (extension === ".html") {
       const html = data.toString("utf8");
       data = Buffer.from(
