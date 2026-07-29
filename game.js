@@ -47,13 +47,8 @@ let checkersTimeline = [], checkersTimelineIndex = -1, checkersHistoryReview = f
 let playerPieceColor = "white", coinTossRun = 0, pendingCoinStart = null;
 let currentGameMode = "checkers";
 let seatingInProgress = false, activeSeat = null, currentTableNo = "05";
-const defaultNotices = [
-  {text:"Ищу соперника на спокойную партию после 19:00.",author:"Лена",date:"сегодня",color:"#f2d66e"},
-  {text:"В субботу — клубный круг. Запись открыта до пятницы.",author:"Администратор",date:"вчера",color:"#b9d7c5"},
-  {text:"Новичкам: разбор правил русских шашек у стола 03.",author:"Старый Мастер",date:"сегодня",color:"#efb3b2"},
-  {text:"Поздравляем Севера с серией из пяти побед!",author:"Клуб",date:"2 дня назад",color:"#d3c3e7"}
-];
-const clubCharacters = [
+const defaultNotices = [];
+const removedClubCharacters = [
   {
     id:"yulia",
     number:1,
@@ -227,23 +222,34 @@ const clubCharacters = [
     }
   }
 ];
+const clubCharacters = [];
 let activeOpponentId=null;
 function activeOpponent(){return clubCharacters.find(character=>character.id===activeOpponentId)||null}
-function opponentName(){return activeOpponent()?.name||"Старый Мастер"}
+function opponentName(){
+  if(window.onlineOpponentName)return window.onlineOpponentName;
+  if(activeOpponent())return activeOpponent().name;
+  return window.clubOnline?.isConnected()?"Ожидание соперника":"Компьютер";
+}
 function opponentLevelForMode(mode){
   return activeOpponent()?.skills?.[mode]||profile.botLevel||"B1";
 }
 function setActiveOpponent(characterId=null){
   activeOpponentId=clubCharacters.some(character=>character.id===characterId)?characterId:null;
   const opponent=activeOpponent();
-  const name=opponent?.name||"Старый Мастер";
+  const onlineName=window.onlineOpponentName;
+  const waiting=window.clubOnline?.isConnected()&&!onlineName&&!opponent;
+  const name=onlineName||opponent?.name||(waiting?"Ожидание соперника":"Компьютер");
   if($("#selectedOpponentLabel"))$("#selectedOpponentLabel").textContent=`Соперник: ${name}`;
   if($("#gameOpponentName"))$("#gameOpponentName").textContent=name;
-  if($("#gameOpponentMeta"))$("#gameOpponentMeta").textContent=opponent?"Персонаж клуба":"Бот · 1120";
-  if($("#gameOpponentAvatar"))$("#gameOpponentAvatar").textContent=name[0]?.toUpperCase()||"М";
+  if($("#gameOpponentMeta"))$("#gameOpponentMeta").textContent=onlineName?"Онлайн-игрок":opponent?"Персонаж клуба":waiting?"Пригласите активного игрока":"Компьютерный соперник";
+  if($("#gameOpponentAvatar"))$("#gameOpponentAvatar").textContent=(onlineName||opponent)?name[0]?.toUpperCase()||"":waiting?"?":"CPU";
   if($("#arcadeBotLabel"))$("#arcadeBotLabel").textContent=name;
   updateDifficultyUI();
 }
+window.setOnlineOpponent=name=>{
+  window.onlineOpponentName=name||null;
+  setActiveOpponent(activeOpponentId);
+};
 const matchGreetings={
   yulia:name=>`Приветствую, ${name}! Давайте начнём игру? Буду рада после партии обсудить самый интересный ход.`,
   sofia:name=>`Приветствую, ${name}. Начнём? Постарайтесь меня удивить — лёгкой партии не обещаю.`,
@@ -349,6 +355,10 @@ function cancelCoinToss() {
 }
 $("#coinTossDialog").addEventListener("cancel", event => event.preventDefault());
 $("#coinTossStart").addEventListener("click", () => pendingCoinStart?.());
+if(localStorage.getItem("quietMoveEmptyCastVersion")!=="1"){
+  localStorage.removeItem("quietMoveNotices");
+  localStorage.setItem("quietMoveEmptyCastVersion","1");
+}
 let notices = JSON.parse(localStorage.getItem("quietMoveNotices") || "null") || defaultNotices;
 const seededTournament = {
   results: [
@@ -446,6 +456,7 @@ function syncProfileEditor() {
 }
 function saveProfile() {
   localStorage.setItem("quietMoveProfile", JSON.stringify(profile));
+  window.clubOnline?.refreshProfile();
 }
 function victoryCountLabel(count) {
   const mod100=count%100,mod10=count%10;
@@ -553,7 +564,9 @@ function startRescueVideo() {
   const playback=video.play();
   if(playback)playback.catch(()=>{
     video.controls=true;
-    $("#rescueVideoProgress").textContent="Нажмите кнопку воспроизведения, чтобы продолжить.";
+    $("#rescueVideoProgress").textContent=video.error
+      ?"Не удалось загрузить видео. Обновите страницу и попробуйте ещё раз."
+      :"Нажмите кнопку воспроизведения, чтобы продолжить.";
   });
 }
 function completeLossRescue() {
@@ -575,6 +588,16 @@ $("#rescueVideo").addEventListener("timeupdate",()=>{
   const remaining=Math.max(0,Math.ceil(video.duration-video.currentTime));
   const minutes=Math.floor(remaining/60),seconds=String(remaining%60).padStart(2,"0");
   $("#rescueVideoProgress").textContent=`До новой партии: ${minutes}:${seconds}`;
+});
+$("#rescueVideo").addEventListener("loadeddata",()=>{
+  if(!$("#rescueVideoOverlay").classList.contains("hidden")){
+    $("#rescueVideoProgress").textContent="Видео загружено — просмотр начался.";
+  }
+},{once:false});
+$("#rescueVideo").addEventListener("error",()=>{
+  const video=$("#rescueVideo");
+  video.controls=true;
+  $("#rescueVideoProgress").textContent="Браузер не смог открыть видео. Обновите страницу и попробуйте ещё раз.";
 });
 $("#rescueVideo").addEventListener("ended",completeLossRescue);
 $("#lossRescuePopup").addEventListener("cancel",event=>event.preventDefault());
@@ -611,7 +634,7 @@ function applyProfile() {
   $$("#faceStyles button").forEach(b => b.classList.toggle("selected", b.dataset.style === profile.faceStyle));
   $$("#mustacheStyles button").forEach(b => b.classList.toggle("selected", b.dataset.style === profile.mustacheStyle));
   $("#profileName").textContent = profile.name;
-  $("#playerLabel").textContent = profile.name;
+  if($("#playerLabel"))$("#playerLabel").textContent = profile.name;
   $("#rating").textContent = profile.rating;
   $("#gameRating").textContent = profile.rating;
   $("#gamePlayerName").textContent = profile.name;
@@ -874,6 +897,7 @@ $("#saveAvatar").addEventListener("click", e => {
 });
 
 function appendCharacterMessage(box, character, text) {
+  if(!box||!character||!text)return;
   box.insertAdjacentHTML("beforeend",`<p class="character-message"><b>${escapeHtml(character.name)}</b><span>${escapeHtml(text)}</span></p>`);
   while(box.children.length>40)box.firstElementChild?.remove();
   box.scrollTop=box.scrollHeight;
@@ -902,6 +926,7 @@ function yuliaReply(text,isGameChat=false,continuing=false) {
   return "Конечно, давайте разберёмся вместе. Какую игру или позицию вы хотите обсудить?";
 }
 function scheduleYuliaMessage(box,text,isGameChat=false,delay=900) {
+  if(!clubCharacters.length)return;
   const state=yuliaConversation[isGameChat?"game":"global"];
   if(state.pending||(!state.awaiting&&!yuliaIsAddressed(text)))return;
   const continuing=state.awaiting;
@@ -941,6 +966,7 @@ function sofiaReply(text) {
   return sofia.globalMessages[Math.floor(Math.random()*sofia.globalMessages.length)];
 }
 function scheduleSofiaMessage(box,text,delay=1500) {
+  if(!clubCharacters.length)return;
   if(!isSofiaActiveTime()||!canSofiaReplyToPlayer())return;
   window.setTimeout(()=>{
     if(!box?.isConnected||!isSofiaActiveTime()||!canSofiaReplyToPlayer())return;
@@ -980,6 +1006,7 @@ function innokentiyReply(text,isGameChat=false) {
   return innokentiy.favoritePhrases[Math.floor(Math.random()*innokentiy.favoritePhrases.length)];
 }
 function scheduleInnokentiyMessage(box,text,isGameChat=false,delay=1050) {
+  if(!clubCharacters.length)return;
   if(!isInnokentiyActiveTime())return;
   if(messageAddressesAnotherCharacter(text)&&!innokentiyIsAddressed(text))return;
   const scope=isGameChat?"game":"global";
@@ -1021,6 +1048,7 @@ function olesyaReply(text,isGameChat=false) {
   return "Я рада, что вы заговорили со мной. Как проходит ваш день и что привело вас сегодня в клуб?";
 }
 function scheduleOlesyaMessage(box,text,isGameChat=false,delay=1250) {
+  if(!clubCharacters.length)return;
   if(messageAddressesAnotherCharacter(text)&&!olesyaIsAddressed(text))return;
   if(!olesyaIsAddressed(text)&&!olesyaTopicMentioned(text))return;
   const scope=isGameChat?"game":"global",state=olesyaConversation[scope];
@@ -1095,8 +1123,8 @@ $("#club").addEventListener("click",event=>{
   if(character)openCharacterProfile(character);
 },true);
 function renderCharacterRoster() {
-  $("#characterRosterCount").textContent=`${clubCharacters.length} из 10`;
-  $("#characterRoster").innerHTML=clubCharacters.map(character=>`
+  $("#characterRosterCount").textContent=clubCharacters.length?`${clubCharacters.length} из 10`:"0 персонажей";
+  $("#characterRoster").innerHTML=clubCharacters.length?clubCharacters.map(character=>`
     <article class="character-roster-card">
       <button class="character-profile-open" data-character-id="${character.id}" aria-label="Открыть профиль: ${escapeHtml(character.name)}">
         <img src="${character.image}" alt="">
@@ -1108,7 +1136,7 @@ function renderCharacterRoster() {
       </button>
       <button class="character-start-game" data-character-id="${character.id}">Начать игру с ${escapeHtml(character.name)}</button>
     </article>
-  `).join("");
+  `).join(""):`<p class="empty-character-roster">Персонажей пока нет.</p>`;
   $$(".character-profile-open").forEach(button=>button.addEventListener("click",()=>{
     const character=clubCharacters.find(item=>item.id===button.dataset.characterId);
     if(character)openCharacterProfile(character);
@@ -1181,32 +1209,38 @@ renderCharacterRoster();
 window.setTimeout(()=>{
   if(!isSofiaActiveTime())return;
   const sofia=clubCharacters.find(character=>character.id==="sofia");
+  if(!sofia)return;
   appendCharacterMessage($("#messages"),sofia,sofia.globalMessages[0]);
 },3200);
 window.setInterval(()=>{
   if(document.visibilityState!=="visible"||!isSofiaActiveTime())return;
   const sofia=clubCharacters.find(character=>character.id==="sofia");
+  if(!sofia)return;
   const message=sofia.globalMessages[Math.floor(Math.random()*sofia.globalMessages.length)];
   appendCharacterMessage($("#messages"),sofia,message);
 },45000);
 window.setTimeout(()=>{
   if(!isInnokentiyActiveTime())return;
   const innokentiy=clubCharacters.find(character=>character.id==="innokentiy");
+  if(!innokentiy)return;
   appendCharacterMessage($("#messages"),innokentiy,innokentiy.globalMessages[0]);
 },2400);
 window.setInterval(()=>{
   if(document.visibilityState!=="visible"||!isInnokentiyActiveTime())return;
   const innokentiy=clubCharacters.find(character=>character.id==="innokentiy");
+  if(!innokentiy)return;
   const message=innokentiy.globalMessages[Math.floor(Math.random()*innokentiy.globalMessages.length)];
   appendCharacterMessage($("#messages"),innokentiy,message);
 },55000);
 window.setTimeout(()=>{
   const olesya=clubCharacters.find(character=>character.id==="olesya");
+  if(!olesya)return;
   appendCharacterMessage($("#messages"),olesya,olesya.globalMessages[0]);
 },4200);
 window.setInterval(()=>{
   if(document.visibilityState!=="visible")return;
   const olesya=clubCharacters.find(character=>character.id==="olesya");
+  if(!olesya)return;
   const message=olesya.globalMessages[Math.floor(Math.random()*olesya.globalMessages.length)];
   appendCharacterMessage($("#messages"),olesya,message);
 },85000);
@@ -1230,7 +1264,7 @@ function tierForPlayer(index,players=getTournamentPlayers()) {
 function calculatePlayerTier(){return tierForPlayer(0)}
 function updateDifficultyUI(){
   const mode=typeof arcadeMode!=="undefined"&&arcadeMode?arcadeMode:currentGameMode;
-  const level=opponentLevelForMode(mode),locked=Boolean(activeOpponent());
+  const level=opponentLevelForMode(mode),locked=Boolean(activeOpponent()||window.onlineOpponentName);
   $$(".difficulty-options button").forEach(button=>{
     button.classList.toggle("selected",button.dataset.level===level);
     button.disabled=locked;
@@ -2277,6 +2311,7 @@ function startGame(tableNo,mode="checkers"){
 function exitGameToClub(){
   clearInterval(timerId);cancelScheduledGameActions();clearCheckersTimeline();hideResultOverlay();closeWinStreakPopup();cancelLossRescue();cancelCoinToss();$(".game-shell").classList.remove("game-pending-toss");
   if($("#gameDialog").open)$("#gameDialog").close();
+  window.clubOnline?.leaveTable();
   leaveSeat();toast("Вы вернулись в клуб");
 }
 $("#leaveGame").addEventListener("click",exitGameToClub);

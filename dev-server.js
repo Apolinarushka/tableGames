@@ -2,6 +2,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const {attachOnlineServer, handleOnlineHttp, initializeDatabase} = require("./online-server");
 
 const root = __dirname;
 const port = Number(process.env.PORT || 4173);
@@ -12,6 +13,7 @@ const watchedExtensions = new Set([
   ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".ico",
   ".wav", ".mp3", ".ogg", ".mp4"
 ]);
+const restartFiles = ["dev-server.js", "online-server.js", "server.js", "package.json", "package-lock.json"];
 const types = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -58,8 +60,20 @@ function broadcastReload() {
 }
 
 let signature = projectSignature();
+let restartSignature = restartFiles.map(file => {
+  const stats = fs.statSync(path.join(root, file));
+  return `${file}:${stats.size}:${stats.mtimeMs}`;
+}).join("|");
 setInterval(() => {
   try {
+    const nextRestartSignature = restartFiles.map(file => {
+      const stats = fs.statSync(path.join(root, file));
+      return `${file}:${stats.size}:${stats.mtimeMs}`;
+    }).join("|");
+    if (nextRestartSignature !== restartSignature) {
+      console.log("Серверный код изменён — перезапускаю сервер.");
+      process.exit(0);
+    }
     const nextSignature = projectSignature();
     if (nextSignature !== signature) {
       signature = nextSignature;
@@ -71,8 +85,16 @@ setInterval(() => {
   }
 }, 450).unref();
 
-const server = http.createServer((request, response) => {
+const server = http.createServer(async (request, response) => {
   const requestPath = decodeURIComponent(request.url.split("?")[0]);
+
+  try {
+    if (await handleOnlineHttp(request, response, requestPath)) return;
+  } catch (error) {
+    response.writeHead(500, {"Content-Type": "application/json; charset=utf-8"});
+    response.end(JSON.stringify({status: "error", message: "Ошибка сервера"}));
+    return;
+  }
 
   if (requestPath === "/__dev_reload") {
     response.writeHead(200, {
@@ -163,7 +185,8 @@ const server = http.createServer((request, response) => {
   });
 });
 
-server.listen(port, "0.0.0.0", () => {
+attachOnlineServer(server);
+initializeDatabase().then(() => server.listen(port, "0.0.0.0", () => {
   console.log(`Режим разработки: http://localhost:${port}`);
   for (const list of Object.values(os.networkInterfaces())) {
     for (const network of list || []) {
@@ -172,4 +195,7 @@ server.listen(port, "0.0.0.0", () => {
       }
     }
   }
+})).catch(error => {
+  console.error("Не удалось запустить сервер:", error);
+  process.exit(1);
 });

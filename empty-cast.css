@@ -1,0 +1,49 @@
+/* Empty cast: keep only invisible movement mechanics and neutral profile marks. */
+
+.club .npc,
+.club .hall-person,
+.club #character,
+.club #playerLabel,
+.club .player-shadow {
+  display: none !important;
+}
+
+.club #player {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mini-avatar:not(.has-photo) {
+  background:
+    radial-gradient(circle at 50% 50%, #d7ad62 0 4px, transparent 4.5px),
+    radial-gradient(circle at 50% 50%, transparent 0 8px, #d7ad6266 8.5px 9.5px, transparent 10px),
+    #172820;
+}
+
+.avatar-preview {
+  display: grid;
+  place-items: center;
+}
+
+.avatar-preview::before {
+  content: "Персонаж не создан";
+  position: static;
+  z-index: 2;
+  width: auto;
+  height: auto;
+  color: #9ca79f;
+  background: none;
+  filter: none;
+  font: 12px Inter, "Segoe UI", sans-serif;
+}
+
+.avatar-preview:has(.uploaded-profile-photo:not(.hidden))::before {
+  display: none;
+}
+
+.empty-character-roster {
+  margin: 18px 4px;
+  color: #7f8a82;
+  text-align: center;
+  font-size: 10px;
+}

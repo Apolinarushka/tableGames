@@ -90,6 +90,7 @@ function openTableGameMenu(tableNo){
 }
 function closeMenuToClub(){
   arcadeEl("gameMenuDialog").close();
+  window.clubOnline?.leaveTable();
   leaveSeat();
   arcadeEl("interaction").textContent="Подойдите к свободному столу";
 }
@@ -102,6 +103,7 @@ function hideArcadeResult(){
 function cleanupArcade(){clearTimeout(arcadeTimer);arcadeTimer=null;arcadeOver=true;hideArcadeResult();closeWinStreakPopup();cancelLossRescue();clearArcadeTimeline();cancelCoinToss();document.querySelector(".arcade-shell")?.classList.remove("arcade-pending-toss");arcadeEl("arcadeMarketSlot").classList.add("hidden");arcadeEl("arcadeMarketSlot").innerHTML=""}
 function openArcade(mode){
   arcadeMode=mode;currentGameMode=mode;arcadeOver=false;hideArcadeResult();clearArcadeTimeline();
+  window.clubOnline?.joinTable(arcadeTableNo,mode);
   arcadeEl("arcadePlayerLabel").textContent="Вы";
   arcadeEl("arcadeBotLabel").textContent=opponentName();
   arcadeEl("arcadePlayerScore").classList.remove("fives-score");
@@ -121,6 +123,7 @@ function backToGameMenu(){
 }
 function exitArcade(){
   cleanupArcade();arcadeEl("arcadeDialog").close();leaveSeat();
+  window.clubOnline?.leaveTable();
   arcadeEl("interaction").textContent="Подойдите к свободному столу";
 }
 function setArcadeRules(title,text){arcadeEl("arcadeRulesTitle").textContent=title;arcadeEl("arcadeRules").textContent=text}
@@ -192,7 +195,12 @@ arcadeEl("arcadeHistoryForward").addEventListener("click",()=>stepArcadeHistory(
 postChat(arcadeEl("arcadeChatForm"),arcadeEl("arcadeChatInput"),arcadeEl("arcadeChatMessages"),true);
 document.querySelectorAll("[data-club-game]").forEach(button=>button.addEventListener("click",()=>{
   const mode=button.dataset.clubGame;
+  if(window.clubOnline?.isConnected()&&!window.onlineOpponentName){
+    toast("Сначала пригласите активного игрока или включите поиск соперника.");
+    return;
+  }
   if(mode==="checkers"||mode==="giveaway"){
+    window.clubOnline?.joinTable(arcadeTableNo,mode);
     arcadeEl("gameMenuDialog").close();startGame(arcadeTableNo,mode);
   }else openArcade(mode);
 }));

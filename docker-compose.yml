@@ -1,4 +1,20 @@
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: table-games-db
+    environment:
+      POSTGRES_DB: tablegames
+      POSTGRES_USER: tablegames
+      POSTGRES_PASSWORD: tablegames_local
+    volumes:
+      - table-games-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tablegames -d tablegames"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: always
+
   game:
     build:
       context: .
@@ -7,7 +23,11 @@ services:
     environment:
       NODE_ENV: "development"
       PORT: "4173"
-    command: ["node", "dev-server.js"]
+      DATABASE_URL: "postgresql://tablegames:tablegames_local@db:5432/tablegames"
+    command: ["node", "--watch", "dev-server.js"]
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - .:/app
     ports:
@@ -19,3 +39,6 @@ services:
           path: Dockerfile
         - action: rebuild
           path: package.json
+
+volumes:
+  table-games-data:

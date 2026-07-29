@@ -18,6 +18,8 @@
   <link rel="stylesheet" href="faces.css">
   <link rel="stylesheet" href="dresses.css">
   <link rel="stylesheet" href="sidebar.css">
+  <link rel="stylesheet" href="empty-cast.css">
+  <link rel="stylesheet" href="online.css">
 </head>
 <body>
   <main id="app">
@@ -26,7 +28,7 @@
         <span class="brand-mark">●</span>
         <div><strong>Тихий ход</strong><small>клуб русских шашек</small></div>
       </div>
-      <div class="online"><i></i><span id="onlineCount">8 игроков в клубе</span></div>
+      <div class="online"><i></i><span id="onlineCount">0 персонажей в клубе</span></div>
       <div class="profile">
         <div class="profile-progress"><span class="rating">Рейтинг <b id="rating">1000</b></span><small id="playerLevel">Уровень после 10 партий</small></div>
         <button class="avatar-button" id="customizeButton" aria-label="Открыть анкету игрока">
@@ -38,7 +40,7 @@
     <section class="club" id="club" aria-label="Зал шашечного клуба">
       <div class="club-title">
         <span>Шашечный клуб · вечерняя сессия</span>
-        <b>Свободно 2 стола</b>
+        <b>Все столы свободны</b>
       </div>
       <button class="room-streak-quick" id="streakQuickButton" type="button" aria-label="Открыть данные о цепочке побед">
         <span class="room-streak-icon" aria-hidden="true"></span>
@@ -73,66 +75,28 @@
         <span class="table-number">01</span><span class="table-top"><i></i></span>
         <span class="table-status">Свободен</span><span class="chair c1"></span><span class="chair c2"></span>
       </button>
-      <button class="table table-2 busy" data-table="2" style="--x:49%;--y:47%" aria-label="Стол 2, идёт партия">
+      <button class="table table-2 available" data-table="2" style="--x:49%;--y:47%" aria-label="Стол 2, свободен">
         <span class="table-number">02</span><span class="table-top"><i></i></span>
-        <span class="table-status">Идёт партия · 02:41</span><span class="chair c1"></span><span class="chair c2"></span>
-        <span class="npc npc-a facing-right npc-hair-wave npc-smile" data-character-id="yulia" aria-label="Открыть анкету Юлии" style="--npc-skin:#d9a77f;--npc-hair:#34261f;--npc-clothes:#7b4bb7"><span class="npc-name">Юлия</span><i class="npc-hair"></i><i class="npc-head"></i><i class="npc-body"></i><i class="npc-arm"></i><i class="npc-hand"></i><i class="npc-leg"></i><i class="npc-shoe"></i></span>
-        <span class="npc npc-b facing-left npc-hair-bob npc-calm" data-character-id="sofia" aria-label="Открыть анкету Софии" style="--npc-skin:#754a37;--npc-hair:#151515;--npc-clothes:#339565"><span class="npc-name">София</span><i class="npc-hair"></i><i class="npc-head"></i><i class="npc-body"></i><i class="npc-arm"></i><i class="npc-hand"></i><i class="npc-leg"></i><i class="npc-shoe"></i></span>
+        <span class="table-status">Свободен</span><span class="chair c1"></span><span class="chair c2"></span>
       </button>
       <button class="table table-3 available" data-table="3" style="--x:78%;--y:50%" aria-label="Стол 3, свободен">
         <span class="table-number">03</span><span class="table-top"><i></i></span>
         <span class="table-status">Свободен</span><span class="chair c1"></span><span class="chair c2"></span>
       </button>
-      <button class="table table-4 busy" data-table="4" style="--x:33%;--y:69%" aria-label="Стол 4, идёт партия">
+      <button class="table table-4 available" data-table="4" style="--x:33%;--y:69%" aria-label="Стол 4, свободен">
         <span class="table-number">04</span><span class="table-top"><i></i></span>
-        <span class="table-status">Идёт партия · 00:38</span><span class="chair c1"></span><span class="chair c2"></span>
-        <span class="npc npc-c facing-right npc-hair-bun npc-freckles npc-mustache-thin" data-character-id="innokentiy" aria-label="Открыть анкету Иннокентия" style="--npc-skin:#f0c39c;--npc-hair:#b57a3b;--npc-clothes:#3099cb"><span class="npc-name">Иннокентий</span><i class="npc-hair"></i><i class="npc-head"></i><i class="npc-mustache"></i><i class="npc-body"></i><i class="npc-arm"></i><i class="npc-hand"></i><i class="npc-leg"></i><i class="npc-shoe"></i></span>
-        <span class="npc npc-d facing-left npc-hair-short npc-smile" data-character-id="olesya" aria-label="Открыть анкету Олеси" style="--npc-skin:#ae7656;--npc-hair:#20201c;--npc-clothes:#e0782f"><span class="npc-name">Олеся</span><i class="npc-hair"></i><i class="npc-head"></i><i class="npc-body"></i><i class="npc-arm"></i><i class="npc-hand"></i><i class="npc-leg"></i><i class="npc-shoe"></i></span>
+        <span class="table-status">Свободен</span><span class="chair c1"></span><span class="chair c2"></span>
       </button>
-      <button class="table table-5 bot-table" data-table="5" style="--x:67%;--y:70%" aria-label="Стол 5, партия с ботом">
+      <button class="table table-5 available" data-table="5" style="--x:67%;--y:70%" aria-label="Стол 5, свободен">
         <span class="table-number">05</span><span class="table-top"><i></i></span>
-        <span class="table-status">Бот ждёт соперника</span><span class="chair c1"></span><span class="chair c2"></span>
-        <span class="npc bot facing-left npc-hair-short npc-calm npc-mustache-classic" data-character-id="master" aria-label="Открыть анкету Старого Мастера" style="--npc-skin:#d9a77f;--npc-hair:#d8c2a0;--npc-clothes:#d7ad32"><span class="npc-name">Старый Мастер</span><i class="npc-hair"></i><i class="npc-head"></i><i class="npc-mustache"></i><i class="npc-body"></i><i class="npc-arm"></i><i class="npc-hand"></i><i class="npc-leg"></i><i class="npc-shoe"></i></span>
+        <span class="table-status">Свободен</span><span class="chair c1"></span><span class="chair c2"></span>
       </button>
-
-      <div class="hall-person hall-walker walker-one" aria-label="Лада идёт по залу" style="--person-skin:#dca47d;--person-hair:#442a22;--person-clothes:#c84a42;--person-trousers:#30424b">
-        <span class="hall-person-name">Лада</span>
-        <span class="hall-silhouette">
-          <i class="hall-hair"></i><i class="hall-head"></i><i class="hall-neck"></i><i class="hall-torso"></i>
-          <span class="hall-arm arm-left"><i></i></span><span class="hall-arm arm-right"><i></i></span>
-          <span class="hall-leg leg-left"><i></i></span><span class="hall-leg leg-right"><i></i></span>
-        </span>
-        <i class="hall-shadow"></i>
-      </div>
-
-      <div class="hall-person hall-walker walker-two" aria-label="Марк идёт по залу" style="--person-skin:#a76f52;--person-hair:#171918;--person-clothes:#3099cb;--person-trousers:#292f36">
-        <span class="hall-person-name">Марк</span>
-        <span class="hall-silhouette">
-          <i class="hall-hair"></i><i class="hall-head"></i><i class="hall-neck"></i><i class="hall-torso"></i>
-          <span class="hall-arm arm-left"><i></i></span><span class="hall-arm arm-right"><i></i></span>
-          <span class="hall-leg leg-left"><i></i></span><span class="hall-leg leg-right"><i></i></span>
-        </span>
-        <i class="hall-shadow"></i>
-      </div>
-
-      <div class="hall-person hall-observer observer-one" aria-label="Север наблюдает за партией" style="--person-skin:#e2b18c;--person-hair:#6b3b26;--person-clothes:#339565;--person-trousers:#40364a">
-        <span class="hall-person-name">Север · наблюдает</span>
-        <span class="hall-silhouette">
-          <i class="hall-hair"></i><i class="hall-head"></i><i class="hall-neck"></i><i class="hall-torso"></i>
-          <span class="hall-arm arm-left"><i></i></span><span class="hall-arm arm-right"><i></i></span>
-          <span class="hall-leg leg-left"><i></i></span><span class="hall-leg leg-right"><i></i></span>
-        </span>
-        <i class="hall-shadow"></i>
-      </div>
 
       <div class="player" id="player" style="--px:50%;--py:84%">
-        <span class="player-name" id="playerLabel">Гость</span>
-        <span class="character hair-wave face-smile mustache-none" id="character"><i class="ear e1"></i><i class="ear e2"></i><i class="hair"></i><i class="head"></i><i class="mustache"></i><i class="body"></i><i class="arm a1"></i><i class="arm a2"></i><i class="leg l1"></i><i class="leg l2"></i></span>
-        <span class="player-shadow"></span>
       </div>
 
       <div class="interaction" id="interaction">Подойдите к свободному столу</div>
-      <div class="controls-hint"><span>Клик по полу — идти</span><span>Клик по столу — подойти и сесть</span><span>Клик по человеку — открыть анкету</span><kbd>F3</kbd><span>доска клуба</span></div>
+      <div class="controls-hint"><span>Клик по полу — выбрать точку</span><span>Клик по столу — начать игру</span><kbd>F3</kbd><span>доска клуба</span></div>
     </section>
 
     <aside class="sidebar" id="clubSidebar">
@@ -144,17 +108,36 @@
         <button class="sidebar-collapse" id="sidebarCollapse" type="button" aria-expanded="true" aria-label="Свернуть меню" title="Свернуть меню"><span aria-hidden="true">−</span></button>
       </div>
       <div id="roomsPanel" class="side-panel">
+        <section class="online-lobby" aria-labelledby="activePlayersTitle">
+          <header>
+            <div><small>Онлайн-лобби</small><b id="activePlayersTitle">Активные игроки</b></div>
+            <span id="activePlayersCount">0</span>
+          </header>
+          <label class="challenge-game-label" for="challengeGame">Игра для вызова</label>
+          <select id="challengeGame">
+            <option value="checkers">Шашки</option>
+            <option value="giveaway">Поддавки</option>
+            <option value="corners">Уголки</option>
+            <option value="chess">Шахматы</option>
+            <option value="domino">Домино</option>
+            <option value="fives">Домино «Пятёрочки»</option>
+          </select>
+          <button class="looking-opponent-button" id="lookingForOpponent" type="button">
+            <span>⚔</span><b>Ищу соперника</b>
+          </button>
+          <div class="active-player-list" id="activePlayerList"></div>
+        </section>
         <div class="room-row free" data-focus="1"><b>Стол 01</b><span>Свободен</span><small>Играть</small></div>
-        <div class="room-row"><b>Стол 02</b><span>Виктор · Лена</span><small>Смотреть</small></div>
+        <div class="room-row free" data-focus="2"><b>Стол 02</b><span>Свободен</span><small>Играть</small></div>
         <div class="room-row free" data-focus="3"><b>Стол 03</b><span>Свободен</span><small>Играть</small></div>
-        <div class="room-row"><b>Стол 04</b><span>Макс · Север</span><small>Смотреть</small></div>
-        <div class="room-row bot-row" data-focus="5"><b>Стол 05</b><span>Старый Мастер · бот</span><small>Вызвать</small></div>
+        <div class="room-row free" data-focus="4"><b>Стол 04</b><span>Свободен</span><small>Играть</small></div>
+        <div class="room-row free" data-focus="5"><b>Стол 05</b><span>Свободен</span><small>Играть</small></div>
       </div>
       <div id="historyPanel" class="side-panel hidden"><p class="empty-history">Сыгранных партий пока нет.</p></div>
       <div id="charactersPanel" class="side-panel characters-panel hidden">
         <header class="characters-panel-head">
           <div><span>Участники клуба</span><b>Персонажи</b></div>
-          <small id="characterRosterCount">1 из 10</small>
+          <small id="characterRosterCount">0 персонажей</small>
         </header>
         <div class="character-roster" id="characterRoster"></div>
       </div>
@@ -167,10 +150,9 @@
     <section class="chat-panel">
       <div class="chat-tabs"><button class="active" data-chat="global">Общий чат</button><button data-chat="table">За столом</button></div>
       <div class="messages" id="messages">
-        <p><b>Лена</b><span>Кто на быструю партию?</span></p>
-        <p><b>Север</b><span>После этой сыграю.</span></p>
-        <p class="system"><span>Виктор занял стол 02</span></p>
+        <p class="system"><span>Список персонажей очищен.</span></p>
       </div>
+      <button class="chat-find-opponent" id="chatFindOpponent" type="button">⚔ Ищу соперника</button>
       <form id="chatForm"><input id="chatInput" maxlength="120" placeholder="Написать сообщение…" autocomplete="off"><button aria-label="Отправить">↗</button></form>
     </section>
   </main>
@@ -185,7 +167,7 @@
       </div>
       <div class="character-profile-content">
         <span class="eyebrow">Участник клуба</span>
-        <h2 id="characterProfileName">Юлия</h2>
+        <h2 id="characterProfileName">Персонажей нет</h2>
         <p class="character-role" id="characterProfileRole">Дружелюбный советчик</p>
         <p class="character-bio" id="characterProfileBio"></p>
         <section class="character-levels" aria-labelledby="characterLevelsTitle">
@@ -402,7 +384,6 @@
       <div class="customizer-body">
         <div class="profile-visual-column">
           <div class="avatar-preview">
-            <span class="character large hair-wave face-smile mustache-none" id="avatarPreview"><i class="ear e1"></i><i class="ear e2"></i><i class="hair"></i><i class="head"></i><i class="mustache"></i><i class="body"></i><i class="arm a1"></i><i class="arm a2"></i><i class="leg l1"></i><i class="leg l2"></i></span>
             <img class="uploaded-profile-photo hidden" id="profilePhotoPreview" alt="Ваша фотография">
           </div>
           <label class="photo-upload-button" for="profilePhotoInput">Загрузить реальную фотографию
@@ -520,7 +501,7 @@
       </header>
       <div class="game-layout">
         <section class="match-card opponent">
-          <div class="match-avatar bot-face" id="gameOpponentAvatar">М</div><div><b id="gameOpponentName">Старый Мастер</b><span id="gameOpponentMeta">Бот · 1120</span></div>
+          <div class="match-avatar bot-face" id="gameOpponentAvatar">?</div><div><b id="gameOpponentName">Ожидание соперника</b><span id="gameOpponentMeta">Онлайн-игрок</span></div>
           <strong id="botCount">12</strong>
         </section>
         <aside class="difficulty-panel">
@@ -595,7 +576,7 @@
       <button class="wood-menu-close" id="closeGameMenu" aria-label="Вернуться в клуб">×</button>
       <span class="eyebrow">Игровой стол <b id="menuTableNumber">01</b></span>
       <h2 id="gameMenuTitle">Выберите игру</h2>
-      <p class="selected-opponent-label" id="selectedOpponentLabel">Соперник: Старый Мастер</p>
+      <p class="selected-opponent-label" id="selectedOpponentLabel">Соперник: ожидается</p>
       <div class="wood-menu-list">
         <button data-club-game="checkers">Шашки</button>
         <button data-club-game="giveaway">Поддавки</button>
@@ -617,7 +598,7 @@
       <div class="arcade-scorebar">
         <div><span id="arcadePlayerLabel">Вы</span><b id="arcadePlayerScore">0</b></div>
         <p id="arcadeStatus" aria-live="polite">Ваш ход</p>
-        <div><span id="arcadeBotLabel">Старый Мастер</span><b id="arcadeBotScore">0</b></div>
+        <div><span id="arcadeBotLabel">Ожидание соперника</span><b id="arcadeBotScore">0</b></div>
       </div>
       <main class="arcade-stage">
         <div id="arcadeBoard" class="arcade-board" aria-label="Игровое поле"></div>
@@ -721,7 +702,7 @@
 
   <dialog class="rescue-video-overlay hidden" id="rescueVideoOverlay" aria-label="Видео для сохранения победной серии">
     <video id="rescueVideo" preload="metadata" playsinline>
-      <source src="assets/media/streak-rescue.mp4" type="video/mp4">
+      <source src="assets/media/streak-rescue-browser.mp4" type="video/mp4">
     </video>
     <button class="rescue-video-mute" id="rescueVideoMute" type="button" aria-pressed="false">🔊 Отключить звук</button>
     <div class="rescue-video-status">
@@ -730,8 +711,21 @@
     </div>
   </dialog>
 
+  <dialog class="online-invitation-dialog" id="onlineInvitationDialog" aria-labelledby="onlineInvitationTitle">
+    <article>
+      <span class="eyebrow">Вызов на игру</span>
+      <h2 id="onlineInvitationTitle">Вас приглашают за стол</h2>
+      <p id="onlineInvitationText"></p>
+      <div class="online-invitation-actions">
+        <button class="primary" id="acceptOnlineInvitation" type="button">Принять вызов</button>
+        <button class="result-secondary" id="declineOnlineInvitation" type="button">Отказаться</button>
+      </div>
+    </article>
+  </dialog>
+
   <div class="toast" id="toast"></div>
   <script src="game.js"></script>
+  <script src="online.js"></script>
   <script src="arcade.js"></script>
 </body>
 </html>

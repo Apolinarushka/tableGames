@@ -1,0 +1,203 @@
+.online.server-offline i {
+  background: #c17a55;
+  box-shadow: 0 0 0 3px rgb(193 122 85 / 16%);
+}
+
+.table.online-occupied .table-status {
+  color: #f4d58a;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-row.online-occupied {
+  border-color: rgb(212 169 83 / 35%);
+}
+
+.room-row.online-occupied span {
+  color: #d9cba8;
+}
+
+#messages p small {
+  align-self: flex-end;
+  margin-left: auto;
+  color: #7e8c83;
+  font-size: .66rem;
+  white-space: nowrap;
+}
+
+.online-lobby {
+  margin: 0 0 .8rem;
+  padding: .8rem;
+  border: 1px solid rgb(202 164 94 / 25%);
+  border-radius: .8rem;
+  background: rgb(10 28 20 / 74%);
+}
+
+.online-lobby header,
+.active-player,
+.online-invitation-actions {
+  display: flex;
+  align-items: center;
+}
+
+.online-lobby header {
+  justify-content: space-between;
+  margin-bottom: .65rem;
+}
+
+.online-lobby header div {
+  display: grid;
+}
+
+.online-lobby header small,
+.challenge-game-label {
+  color: #a6b0a8;
+  font-size: .64rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+#activePlayersCount {
+  min-width: 1.75rem;
+  padding: .2rem .45rem;
+  border-radius: 999px;
+  color: #f2d184;
+  background: #192c22;
+  text-align: center;
+}
+
+#challengeGame {
+  width: 100%;
+  margin: .3rem 0 .55rem;
+  padding: .48rem .55rem;
+  border: 1px solid rgb(202 164 94 / 28%);
+  border-radius: .45rem;
+  color: #efe6d0;
+  background: #102219;
+}
+
+.looking-opponent-button,
+.chat-find-opponent {
+  width: 100%;
+  border: 1px solid #8d713a;
+  border-radius: .5rem;
+  color: #f8df9a;
+  background: linear-gradient(180deg, #57431f, #2e2818);
+  cursor: pointer;
+}
+
+.looking-opponent-button {
+  display: flex;
+  justify-content: center;
+  gap: .4rem;
+  padding: .55rem;
+}
+
+.looking-opponent-button.is-looking,
+.chat-find-opponent.is-looking {
+  border-color: #6eae78;
+  color: #d7f5d8;
+  background: #24492f;
+}
+
+.active-player-list {
+  display: grid;
+  gap: .42rem;
+  max-height: 12rem;
+  margin-top: .65rem;
+  overflow: auto;
+}
+
+.active-player {
+  gap: .48rem;
+  padding: .38rem;
+  border-radius: .45rem;
+  background: rgb(255 255 255 / 4%);
+}
+
+.active-player.is-me {
+  opacity: .72;
+}
+
+.active-player-avatar {
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  place-items: center;
+  border-radius: 50%;
+  color: #38250d;
+  background: #d7b66c;
+  font-weight: 800;
+}
+
+.active-player div {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+}
+
+.active-player b,
+.active-player small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.active-player small {
+  color: #94a198;
+  font-size: .66rem;
+}
+
+.active-player button,
+.message-challenge {
+  padding: .32rem .45rem;
+  border: 1px solid #7e6b3c;
+  border-radius: .35rem;
+  color: #f3da94;
+  background: #273122;
+  cursor: pointer;
+}
+
+.chat-find-opponent {
+  margin: .4rem .7rem;
+  padding: .48rem;
+}
+
+.message-challenge {
+  align-self: flex-end;
+  margin-top: .22rem;
+}
+
+.online-invitation-dialog {
+  width: min(31rem, calc(100vw - 2rem));
+  border: 1px solid #9f7d43;
+  border-radius: 1rem;
+  color: #f5ead2;
+  background: linear-gradient(145deg, #2b3d31, #122219);
+  box-shadow: 0 1.2rem 5rem rgb(0 0 0 / 62%);
+}
+
+.online-invitation-dialog::backdrop {
+  background: rgb(3 12 8 / 76%);
+  backdrop-filter: blur(5px);
+}
+
+.online-invitation-dialog article {
+  padding: 1.2rem;
+}
+
+.online-invitation-dialog h2 {
+  margin: .35rem 0 .55rem;
+}
+
+.online-invitation-actions {
+  gap: .6rem;
+  margin-top: 1rem;
+}
+
+.online-invitation-actions button {
+  min-height: 2.7rem;
+  flex: 1;
+}
