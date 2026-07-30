@@ -24,7 +24,7 @@ services:
       NODE_ENV: "development"
       PORT: "4173"
       DATABASE_URL: "postgresql://tablegames:tablegames_local@db:5432/tablegames"
-    command: ["node", "--watch", "dev-server.js"]
+    command: ["node", "dev-server.js"]
     depends_on:
       db:
         condition: service_healthy

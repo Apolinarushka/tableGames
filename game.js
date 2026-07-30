@@ -1,7 +1,18 @@
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 
-const profile = JSON.parse(localStorage.getItem("quietMoveProfile") || "null") || {
+const storedProfileText = localStorage.getItem("quietMoveProfile");
+let storedProfile = null;
+try { storedProfile = JSON.parse(storedProfileText || "null"); } catch { storedProfile = null; }
+const hadStoredProfile = Boolean(storedProfile && typeof storedProfile === "object");
+const profileSessionStorageKey = "table-games-online-session";
+const generatedProfileSessionId = globalThis.crypto?.randomUUID
+  ? globalThis.crypto.randomUUID()
+  : `player-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+let profileSessionId = localStorage.getItem(profileSessionStorageKey) || generatedProfileSessionId;
+localStorage.setItem(profileSessionStorageKey, profileSessionId);
+
+const profile = storedProfile || {
   name: "Гость", clothes: "#c84a42", hair: "#4a2d22", skin: "#d9a77f",
   hairStyle: "hair-wave", faceStyle: "face-smile", rating: 1000, games: []
 };
@@ -41,7 +52,9 @@ profile.hair = hairColorUpgrade[profile.hair] || profile.hair;
 if (!["#171514", "#4a2d22", "#783f2b", "#6f2535", "#c7ad83"].includes(profile.hair)) {
   profile.hair = "#4a2d22";
 }
-let pos = { x: 50, y: 84 }, targetPos = null, arrivalCallback = null, nearTable = null, nearBulletin = false, soundOn = true, audioCtx;
+let profileCompleted = hadStoredProfile && localStorage.getItem("quietMoveWelcomed") === "1";
+let profileSaveQueue = Promise.resolve();
+let pos = { x: 94, y: 69 }, targetPos = null, arrivalCallback = null, nearTable = null, nearBulletin = false, soundOn = true, audioCtx;
 let board = [], turn = "white", selected = null, chainPiece = null, seconds = 60, timerId, gameOver = false, moveHistory = [], activeOpeningName = null, announcedOpeningName = null, announcedEndgameClass = null;
 let checkersTimeline = [], checkersTimelineIndex = -1, checkersHistoryReview = false, checkersAnalysisMode = false, checkersResultRecorded = false, gameActionGeneration = 0;
 let playerPieceColor = "white", coinTossRun = 0, pendingCoinStart = null;
@@ -680,13 +693,29 @@ function toast(text) {
 }
 
 function movePlayer(x, y) {
-  pos.x = Math.max(8, Math.min(90, x)); pos.y = Math.max(43, Math.min(91, y));
+  const previousX=pos.x;
+  pos.x = Math.max(7, Math.min(96, x));
+  pos.y = $("#club")?.classList.contains("new-room") && !$("#player")?.classList.contains("sitting")
+    ? 69
+    : Math.max(43, Math.min(91, y));
   const player = $("#player"); player.style.setProperty("--px", `${pos.x}%`); player.style.setProperty("--py", `${pos.y}%`);
+  if(Math.abs(pos.x-previousX)>.01){
+    player.classList.toggle("facing-right",pos.x>previousX);
+    player.classList.toggle("facing-left",pos.x<previousX);
+  }
+  const sprite=$("#roomPlayerSprite");
+  if(sprite&&!player.classList.contains("sitting")){
+    const frame=Math.floor(Date.now()/180)%2?"b":"a";
+    sprite.src=`assets/new-room/sprites/walk-right-${frame}.png`;
+  }
   player.classList.add("walking"); clearTimeout(movePlayer.t); movePlayer.t = setTimeout(() => player.classList.remove("walking"), 180);
   detectTable();
 }
 function walkTo(x, y, callback = null) {
-  targetPos = { x: Math.max(8, Math.min(90, x)), y: Math.max(43, Math.min(91, y)) };
+  targetPos = {
+    x: Math.max(7, Math.min(96, x)),
+    y: $("#club")?.classList.contains("new-room") ? 69 : Math.max(43, Math.min(91, y))
+  };
   arrivalCallback = callback;
 }
 function detectTable() {
@@ -699,8 +728,8 @@ function detectTable() {
   });
   const bulletin = $("#wallBulletin");
   const bulletinDistance = Math.hypot((pos.x - 10.5) * 1.1, pos.y - 43);
-  nearBulletin = bulletinDistance < 10.5;
-  bulletin.classList.toggle("near", nearBulletin);
+  nearBulletin = Boolean(bulletin) && bulletinDistance < 10.5;
+  bulletin?.classList.toggle("near", nearBulletin);
   if(seatingInProgress)return;
   if (nearTable) {
     nearTable.classList.add("near");
@@ -712,6 +741,7 @@ function detectTable() {
 }
 document.addEventListener("keydown", e => {
   if (e.key === "F3") {
+    if (!$("#wallBulletin")) return;
     e.preventDefault();
     if ($("#gameDialog").open || $("#gameMenuDialog")?.open || $("#arcadeDialog")?.open || $("#customizer").open || seatingInProgress) return;
     if ($("#bulletinDialog").open) $("#bulletinDialog").close();
@@ -743,7 +773,7 @@ $$("[data-focus]").forEach(row => row.addEventListener("click", () => {
   const t = $(`.table[data-table="${row.dataset.focus}"]`), x = parseFloat(t.style.getPropertyValue("--x")), y = parseFloat(t.style.getPropertyValue("--y"));
   walkTo(x, y + 9, () => interact(t));
 }));
-$("#wallBulletin").addEventListener("click", () => {
+$("#wallBulletin")?.addEventListener("click", () => {
   if (seatingInProgress) return;
   walkTo(10.5, 43, openBulletin);
 });
@@ -757,23 +787,35 @@ function interact(table) {
   }
   sitAtTable(table);
 }
-function sitAtTable(table) {
+function sitAtTable(table,seatSide="left") {
   if (seatingInProgress || activeSeat) return;
   setActiveOpponent(table.dataset.table==="5"?"master":null);
   seatingInProgress = true;
   const x = parseFloat(table.style.getPropertyValue("--x"));
   const y = parseFloat(table.style.getPropertyValue("--y"));
+  const newRoom=$("#club")?.classList.contains("new-room");
+  const seatX=x+(seatSide==="right"?7.3:-7.3);
   $("#interaction").textContent = "Подходим к стулу…";
-  walkTo(x - 7.5, y + 8, () => {
-    const chair = $(".chair.c1", table);
-    activeSeat = { table, chair };
+  walkTo(seatX, newRoom?69:y+8, () => {
+    const chair = newRoom
+      ? $(`[data-seat-table="${table.dataset.table}"][data-seat-side="${seatSide}"]`)
+      : $(`.chair.${seatSide==="right"?"c2":"c1"}`, table);
+    activeSeat = { table, chair, seatSide };
     table.classList.add("seat-in-use");
-    chair.classList.add("pulled");
+    chair?.classList.add("pulled");
+    $("#player").classList.toggle("facing-right",seatSide==="left");
+    $("#player").classList.toggle("facing-left",seatSide==="right");
+    if($("#roomPlayerSprite"))$("#roomPlayerSprite").src="assets/new-room/sprites/pull-chair.png";
     $("#interaction").textContent = "Отодвигаем стул…";
     beep(145,.08);
     setTimeout(() => {
-      movePlayer(x - 7.5, y + 3.5);
       $("#player").classList.add("sitting");
+      movePlayer(seatX, newRoom?82.8:y+3.5);
+      $("#player").classList.toggle("seat-right",seatSide==="right");
+      $("#player").classList.toggle("seat-left",seatSide==="left");
+      if($("#roomPlayerSprite"))$("#roomPlayerSprite").src="assets/new-room/sprites/sit-side-left-pose.png";
+      const overlay=$("#seatFrontOverlay");
+      if(overlay)overlay.className=`seat-front-overlay table-${table.dataset.table}-front visible`;
       $("#interaction").textContent = "Вы садитесь за стол";
       setTimeout(() => {
         seatingInProgress = false;
@@ -782,13 +824,25 @@ function sitAtTable(table) {
     }, 420);
   });
 }
+$$(("[data-seat-table]")).forEach(seat=>seat.addEventListener("click",event=>{
+  event.stopPropagation();
+  if(seatingInProgress||activeSeat)return;
+  const table=$(`.table[data-table="${seat.dataset.seatTable}"]`);
+  if(!table||table.classList.contains("busy"))return;
+  window.clubOnline?.joinTable(table.dataset.table);
+  sitAtTable(table,seat.dataset.seatSide);
+}));
 function leaveSeat() {
   if (!activeSeat) return;
   const { table, chair } = activeSeat;
   $("#player").classList.remove("sitting");
-  movePlayer(pos.x - 1.5, pos.y + 5);
+  $("#player").classList.remove("seat-left","seat-right");
+  if($("#roomPlayerSprite"))$("#roomPlayerSprite").src="assets/new-room/sprites/walk-right-a.png";
+  const overlay=$("#seatFrontOverlay");
+  if(overlay)overlay.className="seat-front-overlay";
+  movePlayer(pos.x, $("#club")?.classList.contains("new-room")?69:pos.y+5);
   setTimeout(() => {
-    chair.classList.remove("pulled");
+    chair?.classList.remove("pulled");
     table.classList.remove("seat-in-use");
     activeSeat = null;
     detectTable();
@@ -814,13 +868,6 @@ $$(".sidebar-tabs button[data-panel]").forEach(b => b.addEventListener("click", 
 }));
 $("#customizeButton").addEventListener("click", () => $("#customizer").showModal());
 $("#editPlayerProfile").addEventListener("click", () => $("#customizer").showModal());
-function setupSwatches(id, key) {
-  $$(`#${id} button`).forEach(btn => btn.addEventListener("click", () => {
-    $$(`#${id} button`).forEach(x => x.classList.toggle("selected", x === btn));
-    document.documentElement.style.setProperty(`--${key}`, btn.dataset.color);
-  }));
-}
-setupSwatches("clothesSwatches", "clothes"); setupSwatches("hairSwatches", "hair"); setupSwatches("skinSwatches", "skin");
 function setupChoices(id, prefix) {
   $$(`#${id} button`).forEach(btn => btn.addEventListener("click", () => {
     $$(`#${id} button`).forEach(x => x.classList.toggle("selected", x === btn));
@@ -887,9 +934,6 @@ $("#saveAvatar").addEventListener("click", e => {
   profile.activityFrom = $("#activityFromInput").value || "18:00";
   profile.activityTo = $("#activityToInput").value || "23:00";
   profile.interests = [...new Set($("#interestsInput").value.split(",").map(item=>item.trim()).filter(Boolean))].slice(0,10);
-  profile.clothes = $("#clothesSwatches .selected").dataset.color;
-  profile.hair = $("#hairSwatches .selected").dataset.color;
-  profile.skin = $("#skinSwatches .selected").dataset.color;
   profile.hairStyle = $("#hairStyles .selected").dataset.style;
   profile.faceStyle = $("#faceStyles .selected").dataset.style;
   profile.mustacheStyle = $("#mustacheStyles .selected").dataset.style;
@@ -1154,7 +1198,7 @@ $("#characterProfileDialog").addEventListener("cancel",event=>{
   event.preventDefault();
   $("#characterProfileDialog").close();
 });
-$("#trophyHistoryTrigger").addEventListener("click",event=>{
+$("#trophyHistoryTrigger")?.addEventListener("click",event=>{
   event.stopPropagation();
   targetPos=null;arrivalCallback=null;
   if(!$("#trophyHistoryDialog").open)$("#trophyHistoryDialog").showModal();
@@ -1194,12 +1238,14 @@ rulesTabs.forEach((tab,index)=>{
     setRulesTab(rulesTabs[next].dataset.rulesTab,true);
   });
 });
-$("#trophyRulesTrigger").addEventListener("click",event=>{
+function openRulesDialogFromMenu(event){
   event.stopPropagation();
   targetPos=null;arrivalCallback=null;
   setRulesTab("checkers");
   if(!$("#trophyRulesDialog").open)$("#trophyRulesDialog").showModal();
-});
+}
+$("#trophyRulesTrigger")?.addEventListener("click",openRulesDialogFromMenu);
+$("#rulesMenuButton")?.addEventListener("click",openRulesDialogFromMenu);
 $("#closeTrophyRules").addEventListener("click",()=>$("#trophyRulesDialog").close());
 $("#trophyRulesDialog").addEventListener("cancel",event=>{
   event.preventDefault();

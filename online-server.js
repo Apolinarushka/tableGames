@@ -10,9 +10,135 @@ const pool = new Pool({
 });
 
 const sockets = new Set();
+const sessionCookieName = "table_games_session";
 
 function safeText(value, maxLength) {
   return String(value || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, maxLength);
+}
+
+function safeSessionId(value) {
+  const sessionId = safeText(value, 80);
+  return /^[a-zA-Z0-9_-]{12,80}$/.test(sessionId) ? sessionId : "";
+}
+
+function parseCookies(request) {
+  return Object.fromEntries(
+    String(request.headers.cookie || "")
+      .split(";")
+      .map(part => part.trim())
+      .filter(Boolean)
+      .map(part => {
+        const separator = part.indexOf("=");
+        if (separator < 0) return [part, ""];
+        return [part.slice(0, separator), decodeURIComponent(part.slice(separator + 1))];
+      })
+  );
+}
+
+function sessionIdFromRequest(request) {
+  const cookies = parseCookies(request);
+  return safeSessionId(cookies[sessionCookieName])
+    || safeSessionId(request.headers["x-session-id"])
+    || crypto.randomUUID();
+}
+
+function sessionCookie(request, sessionId) {
+  const forwardedProtocol = safeText(request.headers["x-forwarded-proto"], 20).toLowerCase();
+  const secure = request.socket.encrypted || forwardedProtocol === "https";
+  return `${sessionCookieName}=${encodeURIComponent(sessionId)}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
+}
+
+function sendJson(response, status, payload, headers = {}) {
+  response.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+    ...headers
+  });
+  response.end(JSON.stringify(payload));
+}
+
+function readJsonBody(request, maximumBytes = 1200000) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let total = 0;
+    let settled = false;
+    request.on("data", chunk => {
+      if (settled) return;
+      total += chunk.length;
+      if (total > maximumBytes) {
+        settled = true;
+        reject(Object.assign(new Error("payload_too_large"), {statusCode: 413}));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    request.on("end", () => {
+      if (settled) return;
+      try {
+        const text = Buffer.concat(chunks).toString("utf8");
+        resolve(text ? JSON.parse(text) : {});
+      } catch {
+        reject(Object.assign(new Error("invalid_json"), {statusCode: 400}));
+      }
+    });
+    request.on("error", reject);
+  });
+}
+
+function safeInteger(value, fallback, minimum, maximum) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(maximum, Math.max(minimum, Math.round(number)));
+}
+
+function sanitizeProfile(value) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const allowedPhoto = typeof source.photo === "string"
+    && /^data:image\/(?:png|jpeg|webp);base64,/i.test(source.photo)
+    && source.photo.length <= 900000
+      ? source.photo
+      : "";
+  const allowedStyles = {
+    hairStyle: new Set(["hair-wave", "hair-bob", "hair-bun", "hair-short"]),
+    faceStyle: new Set(["face-smile", "face-calm", "face-freckles"]),
+    mustacheStyle: new Set(["mustache-none", "mustache-thin", "mustache-classic", "mustache-handlebar"]),
+    botLevel: new Set(["A1", "A2", "B1", "B2", "V1", "V2"])
+  };
+  const games = Array.isArray(source.games)
+    ? source.games.slice(-500).map(game => ({
+        result: safeText(game?.result, 24),
+        opponent: safeText(game?.opponent, 48),
+        date: safeText(game?.date, 32),
+        delta: safeInteger(game?.delta, 0, -1000, 1000)
+      }))
+    : [];
+  const interests = Array.isArray(source.interests)
+    ? [...new Set(source.interests.map(item => safeText(item, 60)).filter(Boolean))].slice(0, 10)
+    : [];
+  const timeValue = (value, fallback) => /^\d{2}:\d{2}$/.test(String(value || "")) ? String(value) : fallback;
+  const choice = (key, fallback) => allowedStyles[key].has(source[key]) ? source[key] : fallback;
+  return {
+    name: safeText(source.name, 32) || "Гость",
+    city: safeText(source.city, 80),
+    birthDate: safeText(source.birthDate, 10),
+    interests,
+    timezone: safeText(source.timezone, 80) || "Europe/Moscow",
+    activityFrom: timeValue(source.activityFrom, "18:00"),
+    activityTo: timeValue(source.activityTo, "23:00"),
+    photo: allowedPhoto,
+    authProvider: safeText(source.authProvider, 40),
+    clothes: safeText(source.clothes, 24) || "#c84a42",
+    hair: safeText(source.hair, 24) || "#4a2d22",
+    skin: safeText(source.skin, 24) || "#d9a77f",
+    hairStyle: choice("hairStyle", "hair-wave"),
+    faceStyle: choice("faceStyle", "face-smile"),
+    mustacheStyle: choice("mustacheStyle", "mustache-none"),
+    botLevel: choice("botLevel", "B1"),
+    rating: safeInteger(source.rating, 1000, 0, 100000),
+    games,
+    winStreak: safeInteger(source.winStreak, 0, 0, 100000),
+    bestWinStreak: safeInteger(source.bestWinStreak, 0, 0, 100000)
+  };
 }
 
 async function waitForDatabase() {
@@ -43,6 +169,8 @@ async function initializeDatabase() {
     );
     ALTER TABLE club_players ADD COLUMN IF NOT EXISTS looking_for_opponent boolean NOT NULL DEFAULT false;
     ALTER TABLE club_players ADD COLUMN IF NOT EXISTS looking_game text;
+    ALTER TABLE club_players ADD COLUMN IF NOT EXISTS profile jsonb NOT NULL DEFAULT '{}'::jsonb;
+    ALTER TABLE club_players ADD COLUMN IF NOT EXISTS profile_completed boolean NOT NULL DEFAULT false;
     CREATE TABLE IF NOT EXISTS club_tables (
       table_number integer PRIMARY KEY CHECK (table_number BETWEEN 1 AND 5),
       player_one text REFERENCES club_players(session_id) ON DELETE SET NULL,
@@ -97,6 +225,7 @@ async function getSnapshot() {
       FROM club_tables t
       LEFT JOIN club_players p1 ON p1.session_id = t.player_one
       LEFT JOIN club_players p2 ON p2.session_id = t.player_two
+      WHERE t.table_number <= 3
       ORDER BY t.table_number
     `),
     pool.query(`
@@ -167,7 +296,7 @@ async function registerPlayer(socket, data) {
 async function joinTable(socket, data) {
   if (!socket.sessionId) return;
   const tableNumber = Number(data.tableNumber);
-  if (!Number.isInteger(tableNumber) || tableNumber < 1 || tableNumber > 5) return;
+  if (!Number.isInteger(tableNumber) || tableNumber < 1 || tableNumber > 3) return;
   const game = safeText(data.game, 40) || null;
   const client = await pool.connect();
   try {
@@ -240,7 +369,7 @@ async function createMatch(firstId, secondId, game = "checkers", preferredTable 
     const tableResult = await client.query(`
       SELECT table_number
       FROM club_tables
-      WHERE player_one IS NULL AND player_two IS NULL
+      WHERE table_number <= 3 AND player_one IS NULL AND player_two IS NULL
       ORDER BY CASE WHEN table_number = $1 THEN 0 ELSE 1 END, table_number
       LIMIT 1
       FOR UPDATE
@@ -476,6 +605,55 @@ async function handleOnlineHttp(request, response, requestPath) {
   if (requestPath === "/api/club") {
     response.writeHead(200, {"Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store"});
     response.end(JSON.stringify(await getSnapshot()));
+    return true;
+  }
+  if (requestPath === "/api/profile") {
+    const sessionId = sessionIdFromRequest(request);
+    const cookieHeader = {"Set-Cookie": sessionCookie(request, sessionId)};
+    await pool.query(`
+      INSERT INTO club_players(session_id, nickname, connected, last_seen)
+      VALUES ($1, 'Гость', false, now())
+      ON CONFLICT (session_id) DO NOTHING
+    `, [sessionId]);
+    if (request.method === "GET") {
+      const result = await pool.query(`
+        SELECT profile, profile_completed AS completed
+        FROM club_players
+        WHERE session_id = $1
+      `, [sessionId]);
+      const row = result.rows[0] || {profile: {}, completed: false};
+      sendJson(response, 200, {
+        sessionId,
+        profile: row.profile || {},
+        completed: Boolean(row.completed)
+      }, cookieHeader);
+      return true;
+    }
+    if (request.method === "PUT") {
+      let body;
+      try {
+        body = await readJsonBody(request);
+      } catch (error) {
+        sendJson(response, error.statusCode || 400, {status: "error"}, cookieHeader);
+        return true;
+      }
+      const savedProfile = sanitizeProfile(body.profile);
+      const completed = body.completed === true;
+      await pool.query(`
+        UPDATE club_players
+        SET nickname = $2, profile = $3::jsonb, profile_completed = $4, last_seen = now()
+        WHERE session_id = $1
+      `, [sessionId, savedProfile.name, JSON.stringify(savedProfile), completed]);
+      sendJson(response, 200, {
+        status: "ok",
+        sessionId,
+        profile: savedProfile,
+        completed
+      }, cookieHeader);
+      return true;
+    }
+    response.writeHead(405, {"Allow": "GET, PUT"});
+    response.end();
     return true;
   }
   return false;

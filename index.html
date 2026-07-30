@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="sidebar.css">
   <link rel="stylesheet" href="empty-cast.css">
   <link rel="stylesheet" href="online.css">
+  <link rel="stylesheet" href="new-room.css">
 </head>
 <body>
   <main id="app">
@@ -29,6 +30,7 @@
         <div><strong>Тихий ход</strong><small>клуб русских шашек</small></div>
       </div>
       <div class="online"><i></i><span id="onlineCount">0 персонажей в клубе</span></div>
+      <button class="topbar-rules-button" id="rulesMenuButton" type="button">Правила игр</button>
       <div class="profile">
         <div class="profile-progress"><span class="rating">Рейтинг <b id="rating">1000</b></span><small id="playerLevel">Уровень после 10 партий</small></div>
         <button class="avatar-button" id="customizeButton" aria-label="Открыть анкету игрока">
@@ -37,11 +39,7 @@
       </div>
     </header>
 
-    <section class="club" id="club" aria-label="Зал шашечного клуба">
-      <div class="club-title">
-        <span>Шашечный клуб · вечерняя сессия</span>
-        <b>Все столы свободны</b>
-      </div>
+    <section class="club new-room" id="club" aria-label="Светлая игровая гостиная">
       <button class="room-streak-quick" id="streakQuickButton" type="button" aria-label="Открыть данные о цепочке побед">
         <span class="room-streak-icon" aria-hidden="true"></span>
         <span class="room-streak-copy">
@@ -51,52 +49,39 @@
         </span>
         <span class="room-streak-arrow" aria-hidden="true">›</span>
       </button>
-      <div class="wall wall-back">
-        <button class="trophy-gallery trophy-history-trigger" id="trophyHistoryTrigger" type="button" aria-label="Открыть историю шахматных соревнований" title="История шахматных соревнований">
-          <span class="trophy-bay"><span class="wall-cup cup-gold"><i></i></span><span class="wall-medal medal-red"><i></i></span></span>
-          <span class="trophy-bay"><span class="wall-cup cup-silver tall"><i></i></span><span class="wall-medal medal-blue"><i></i></span></span>
-          <span class="trophy-bay"><span class="wall-cup cup-bronze"><i></i></span><span class="wall-medal medal-green"><i></i></span></span>
-        </button>
-        <div class="club-sign"><span>ТИХИЙ</span><em>ХОД</em></div>
-        <button class="trophy-gallery mirrored trophy-rules-trigger" id="trophyRulesTrigger" type="button" aria-label="Открыть правила клубных игр" title="Правила клубных игр">
-          <span class="trophy-bay"><span class="wall-cup cup-gold"><i></i></span><span class="wall-medal medal-red"><i></i></span></span>
-          <span class="trophy-bay"><span class="wall-cup cup-silver tall"><i></i></span><span class="wall-medal medal-blue"><i></i></span></span>
-          <span class="trophy-bay"><span class="wall-cup cup-bronze"><i></i></span><span class="wall-medal medal-green"><i></i></span></span>
-        </button>
-      </div>
-      <button class="wall-bulletin" id="wallBulletin" aria-label="Подойти к доске объявлений">
-        <span class="wall-bulletin-title">Доска клуба</span>
-        <i class="mini-note n1"></i><i class="mini-note n2"></i><i class="mini-note n3"></i>
-        <small>Объявления · Результаты</small>
-      </button>
-      <div class="floor-grid"></div>
-
-      <button class="table table-1 available" data-table="1" style="--x:20%;--y:49%" aria-label="Стол 1, свободен">
-        <span class="table-number">01</span><span class="table-top"><i></i></span>
-        <span class="table-status">Свободен</span><span class="chair c1"></span><span class="chair c2"></span>
-      </button>
-      <button class="table table-2 available" data-table="2" style="--x:49%;--y:47%" aria-label="Стол 2, свободен">
-        <span class="table-number">02</span><span class="table-top"><i></i></span>
-        <span class="table-status">Свободен</span><span class="chair c1"></span><span class="chair c2"></span>
-      </button>
-      <button class="table table-3 available" data-table="3" style="--x:78%;--y:50%" aria-label="Стол 3, свободен">
-        <span class="table-number">03</span><span class="table-top"><i></i></span>
-        <span class="table-status">Свободен</span><span class="chair c1"></span><span class="chair c2"></span>
-      </button>
-      <button class="table table-4 available" data-table="4" style="--x:33%;--y:69%" aria-label="Стол 4, свободен">
-        <span class="table-number">04</span><span class="table-top"><i></i></span>
-        <span class="table-status">Свободен</span><span class="chair c1"></span><span class="chair c2"></span>
-      </button>
-      <button class="table table-5 available" data-table="5" style="--x:67%;--y:70%" aria-label="Стол 5, свободен">
-        <span class="table-number">05</span><span class="table-top"><i></i></span>
-        <span class="table-status">Свободен</span><span class="chair c1"></span><span class="chair c2"></span>
-      </button>
-
-      <div class="player" id="player" style="--px:50%;--py:84%">
+      <div class="new-room-backdrop" aria-hidden="true"></div>
+      <div class="new-room-boards" aria-hidden="true">
+        <img class="new-room-board new-room-board-left" src="assets/new-room/left-board.png" alt="">
+        <img class="new-room-board new-room-board-center" src="assets/new-room/left-board.png" alt="">
+        <img class="new-room-board new-room-board-right" src="assets/new-room/left-board.png" alt="">
       </div>
 
-      <div class="interaction" id="interaction">Подойдите к свободному столу</div>
-      <div class="controls-hint"><span>Клик по полу — выбрать точку</span><span>Клик по столу — начать игру</span><kbd>F3</kbd><span>доска клуба</span></div>
+      <button class="table new-room-table table-1 available" data-table="1" style="--x:20%;--y:65%" aria-label="Передний левый стол, свободен">
+        <span class="table-number">01</span><span class="table-status">Свободен</span>
+      </button>
+      <button class="table new-room-table table-2 available" data-table="2" style="--x:50%;--y:65%" aria-label="Передний центральный стол, свободен">
+        <span class="table-number">02</span><span class="table-status">Свободен</span>
+      </button>
+      <button class="table new-room-table table-3 available" data-table="3" style="--x:80%;--y:65%" aria-label="Передний правый стол, свободен">
+        <span class="table-number">03</span><span class="table-status">Свободен</span>
+      </button>
+
+      <button class="seat-hotspot seat-1-left" data-seat-table="1" data-seat-side="left" aria-label="Сесть слева за стол 1"></button>
+      <button class="seat-hotspot seat-1-right" data-seat-table="1" data-seat-side="right" aria-label="Сесть справа за стол 1"></button>
+      <button class="seat-hotspot seat-2-left" data-seat-table="2" data-seat-side="left" aria-label="Сесть слева за стол 2"></button>
+      <button class="seat-hotspot seat-2-right" data-seat-table="2" data-seat-side="right" aria-label="Сесть справа за стол 2"></button>
+      <button class="seat-hotspot seat-3-left" data-seat-table="3" data-seat-side="left" aria-label="Сесть слева за стол 3"></button>
+      <button class="seat-hotspot seat-3-right" data-seat-table="3" data-seat-side="right" aria-label="Сесть справа за стол 3"></button>
+
+      <div class="player blue-dress-player" id="player" style="--px:94%;--py:69%">
+        <img id="roomPlayerSprite" src="assets/new-room/sprites/walk-right-a.png" alt="Девушка в голубом платье">
+        <span class="room-player-name">Вы</span>
+      </div>
+      <div class="new-room-foreground" aria-hidden="true"></div>
+      <div class="seat-front-overlay" id="seatFrontOverlay" aria-hidden="true"></div>
+
+      <div class="interaction" id="interaction">Нажмите на пол или на один из шести передних стульев</div>
+      <div class="controls-hint"><span>Клик по полу — идти по прямой</span><span>Клик по стулу — подойти и сесть</span></div>
     </section>
 
     <aside class="sidebar" id="clubSidebar">
@@ -130,8 +115,6 @@
         <div class="room-row free" data-focus="1"><b>Стол 01</b><span>Свободен</span><small>Играть</small></div>
         <div class="room-row free" data-focus="2"><b>Стол 02</b><span>Свободен</span><small>Играть</small></div>
         <div class="room-row free" data-focus="3"><b>Стол 03</b><span>Свободен</span><small>Играть</small></div>
-        <div class="room-row free" data-focus="4"><b>Стол 04</b><span>Свободен</span><small>Играть</small></div>
-        <div class="room-row free" data-focus="5"><b>Стол 05</b><span>Свободен</span><small>Играть</small></div>
       </div>
       <div id="historyPanel" class="side-panel hidden"><p class="empty-history">Сыгранных партий пока нет.</p></div>
       <div id="charactersPanel" class="side-panel characters-panel hidden">
@@ -431,27 +414,6 @@
             </div>
             <div class="activity-hours" id="activityHoursPreview" aria-label="Часы активности"></div>
           </fieldset>
-          <fieldset><legend>Одежда</legend><div class="swatches" id="clothesSwatches">
-            <button type="button" data-color="#c84a42" style="--color:#c84a42" class="selected" aria-label="Красная одежда" title="Красный"></button>
-            <button type="button" data-color="#e0782f" style="--color:#e0782f" aria-label="Оранжевая одежда" title="Оранжевый"></button>
-            <button type="button" data-color="#d7ad32" style="--color:#d7ad32" aria-label="Жёлтая одежда" title="Жёлтый"></button>
-            <button type="button" data-color="#339565" style="--color:#339565" aria-label="Зелёная одежда" title="Зелёный"></button>
-            <button type="button" data-color="#3099cb" style="--color:#3099cb" aria-label="Голубая одежда" title="Голубой"></button>
-            <button type="button" data-color="#7b4bb7" style="--color:#7b4bb7" aria-label="Фиолетовая одежда" title="Фиолетовый"></button>
-          </div></fieldset>
-          <fieldset><legend>Тон лица</legend><div class="swatches" id="skinSwatches">
-            <button type="button" data-color="#f0c39c" style="--color:#f0c39c"></button>
-            <button type="button" data-color="#d9a77f" style="--color:#d9a77f" class="selected"></button>
-            <button type="button" data-color="#ae7656" style="--color:#ae7656"></button>
-            <button type="button" data-color="#754a37" style="--color:#754a37"></button>
-          </div></fieldset>
-          <fieldset><legend>Цвет волос</legend><div class="swatches" id="hairSwatches">
-            <button type="button" data-color="#171514" style="--color:#171514" aria-label="Чёрные волосы" title="Чёрные"></button>
-            <button type="button" data-color="#4a2d22" style="--color:#4a2d22" class="selected" aria-label="Коричневые волосы" title="Коричневые"></button>
-            <button type="button" data-color="#783f2b" style="--color:#783f2b" aria-label="Каштановые волосы" title="Каштановые"></button>
-            <button type="button" data-color="#6f2535" style="--color:#6f2535" aria-label="Винные волосы" title="Винные"></button>
-            <button type="button" data-color="#c7ad83" style="--color:#c7ad83" aria-label="Бежевые волосы" title="Бежевые"></button>
-          </div></fieldset>
           <fieldset><legend>Причёска</legend><div class="choice-row" id="hairStyles">
             <button type="button" data-style="hair-wave" class="selected">Волна</button>
             <button type="button" data-style="hair-bob">Каре</button>
