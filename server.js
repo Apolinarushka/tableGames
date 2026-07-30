@@ -44,7 +44,7 @@ const server = http.createServer(async (req,res)=>{
 const port = Number(process.env.PORT || 4173);
 attachOnlineServer(server);
 initializeDatabase().then(()=>server.listen(port,"0.0.0.0",()=>{
-  console.log(`\nТихий ход запущен: http://localhost:${port}`);
+  console.log(`\nТвой ход запущен: http://localhost:${port}`);
   for(const list of Object.values(os.networkInterfaces())) for(const net of list||[])
     if(net.family==="IPv4"&&!net.internal) console.log(`В локальной сети: http://${net.address}:${port}`);
 })).catch(error=>{

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#15251e">
-  <title>Тихий ход — клуб русских шашек</title>
+  <title>Твой ход — настольные игры</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="scene.css">
   <link rel="stylesheet" href="motion.css">
@@ -21,15 +21,24 @@
   <link rel="stylesheet" href="empty-cast.css">
   <link rel="stylesheet" href="online.css">
   <link rel="stylesheet" href="new-room.css">
+  <script src="loading.js" defer></script>
 </head>
-<body>
+<body class="loading-game">
+  <section class="game-loading-screen" id="gameLoadingScreen" role="status" aria-live="polite" aria-label="Загрузка игры «Твой ход»">
+    <img src="assets/media/your-turn-loading.png" alt="Твой ход — настольные игры">
+    <div class="game-loading-status">
+      <div class="game-loading-label"><span>Загрузка игры</span><b id="gameLoadingPercent">0%</b></div>
+      <div class="game-loading-track" aria-hidden="true"><i id="gameLoadingBar"></i></div>
+    </div>
+  </section>
   <main id="app">
     <header class="topbar">
       <div class="brand">
-        <span class="brand-mark">●</span>
-        <div><strong>Тихий ход</strong><small>клуб русских шашек</small></div>
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div><strong>Твой ход</strong><small>настольные игры</small></div>
       </div>
       <div class="online"><i></i><span id="onlineCount">0 персонажей в клубе</span></div>
+      <button class="topbar-computer-button" id="computerGameButton" type="button">Игра против компьютера</button>
       <button class="topbar-rules-button" id="rulesMenuButton" type="button">Правила игр</button>
       <div class="profile">
         <div class="profile-progress"><span class="rating">Рейтинг <b id="rating">1000</b></span><small id="playerLevel">Уровень после 10 партий</small></div>
@@ -39,7 +48,7 @@
       </div>
     </header>
 
-    <section class="club new-room" id="club" aria-label="Светлая игровая гостиная">
+    <section class="club new-room" id="club" style="--room-width-units:100" aria-label="Светлая игровая гостиная">
       <button class="room-streak-quick" id="streakQuickButton" type="button" aria-label="Открыть данные о цепочке побед">
         <span class="room-streak-icon" aria-hidden="true"></span>
         <span class="room-streak-copy">
@@ -51,36 +60,38 @@
       </button>
       <div class="new-room-backdrop" aria-hidden="true"></div>
       <div class="new-room-boards" aria-hidden="true">
-        <img class="new-room-board new-room-board-left" src="assets/new-room/left-board.png" alt="">
-        <img class="new-room-board new-room-board-center" src="assets/new-room/left-board.png" alt="">
-        <img class="new-room-board new-room-board-right" src="assets/new-room/left-board.png" alt="">
+        <img class="new-room-board new-room-board-left" data-board-table="1" style="--board-x:20" src="assets/new-room/left-board.png" alt="">
+        <img class="new-room-board new-room-board-center" data-board-table="2" style="--board-x:50" src="assets/new-room/left-board.png" alt="">
+        <img class="new-room-board new-room-board-right" data-board-table="3" style="--board-x:80" src="assets/new-room/left-board.png" alt="">
       </div>
 
-      <button class="table new-room-table table-1 available" data-table="1" style="--x:20%;--y:65%" aria-label="Передний левый стол, свободен">
+      <button class="table new-room-table table-1 available" data-table="1" style="--x:20;--y:65%" aria-label="Передний левый стол, свободен">
         <span class="table-number">01</span><span class="table-status">Свободен</span>
       </button>
-      <button class="table new-room-table table-2 available" data-table="2" style="--x:50%;--y:65%" aria-label="Передний центральный стол, свободен">
+      <button class="table new-room-table table-2 available" data-table="2" style="--x:50;--y:65%" aria-label="Передний центральный стол, свободен">
         <span class="table-number">02</span><span class="table-status">Свободен</span>
       </button>
-      <button class="table new-room-table table-3 available" data-table="3" style="--x:80%;--y:65%" aria-label="Передний правый стол, свободен">
+      <button class="table new-room-table table-3 available" data-table="3" style="--x:80;--y:65%" aria-label="Передний правый стол, свободен">
         <span class="table-number">03</span><span class="table-status">Свободен</span>
       </button>
 
-      <button class="seat-hotspot seat-1-left" data-seat-table="1" data-seat-side="left" aria-label="Сесть слева за стол 1"></button>
-      <button class="seat-hotspot seat-1-right" data-seat-table="1" data-seat-side="right" aria-label="Сесть справа за стол 1"></button>
-      <button class="seat-hotspot seat-2-left" data-seat-table="2" data-seat-side="left" aria-label="Сесть слева за стол 2"></button>
-      <button class="seat-hotspot seat-2-right" data-seat-table="2" data-seat-side="right" aria-label="Сесть справа за стол 2"></button>
-      <button class="seat-hotspot seat-3-left" data-seat-table="3" data-seat-side="left" aria-label="Сесть слева за стол 3"></button>
-      <button class="seat-hotspot seat-3-right" data-seat-table="3" data-seat-side="right" aria-label="Сесть справа за стол 3"></button>
+      <button class="seat-hotspot seat-1-left" data-seat-table="1" data-seat-side="left" style="--seat-x:13" aria-label="Сесть слева за стол 1"></button>
+      <button class="seat-hotspot seat-1-right" data-seat-table="1" data-seat-side="right" style="--seat-x:28" aria-label="Сесть справа за стол 1"></button>
+      <button class="seat-hotspot seat-2-left" data-seat-table="2" data-seat-side="left" style="--seat-x:43" aria-label="Сесть слева за стол 2"></button>
+      <button class="seat-hotspot seat-2-right" data-seat-table="2" data-seat-side="right" style="--seat-x:58" aria-label="Сесть справа за стол 2"></button>
+      <button class="seat-hotspot seat-3-left" data-seat-table="3" data-seat-side="left" style="--seat-x:73" aria-label="Сесть слева за стол 3"></button>
+      <button class="seat-hotspot seat-3-right" data-seat-table="3" data-seat-side="right" style="--seat-x:87" aria-label="Сесть справа за стол 3"></button>
 
-      <div class="player blue-dress-player" id="player" style="--px:94%;--py:69%">
+      <div class="room-online-guests" id="roomOnlineGuests" aria-live="polite"></div>
+      <div class="player blue-dress-player" id="player" style="--px:94;--py:69%;--guest-dress:#9fb9d8;--guest-mask:url(&quot;assets/new-room/sprites/walk-right-a.png&quot;)">
         <img id="roomPlayerSprite" src="assets/new-room/sprites/walk-right-a.png" alt="Девушка в голубом платье">
+        <span class="player-dress-tint" id="roomPlayerDressTint" aria-hidden="true"></span>
         <span class="room-player-name">Вы</span>
       </div>
       <div class="new-room-foreground" aria-hidden="true"></div>
       <div class="seat-front-overlay" id="seatFrontOverlay" aria-hidden="true"></div>
 
-      <div class="interaction" id="interaction">Нажмите на пол или на один из шести передних стульев</div>
+      <div class="interaction" id="interaction">Нажмите на пол или на свободный стул</div>
       <div class="controls-hint"><span>Клик по полу — идти по прямой</span><span>Клик по стулу — подойти и сесть</span></div>
     </section>
 
@@ -88,7 +99,6 @@
       <div class="sidebar-tabs">
         <button class="active" type="button" data-panel="rooms">Столы</button>
         <button type="button" data-panel="history">История</button>
-        <button type="button" data-panel="characters">Персонажи</button>
         <button type="button" data-panel="playerProfile">Анкета</button>
         <button class="sidebar-collapse" id="sidebarCollapse" type="button" aria-expanded="true" aria-label="Свернуть меню" title="Свернуть меню"><span aria-hidden="true">−</span></button>
       </div>
@@ -98,15 +108,6 @@
             <div><small>Онлайн-лобби</small><b id="activePlayersTitle">Активные игроки</b></div>
             <span id="activePlayersCount">0</span>
           </header>
-          <label class="challenge-game-label" for="challengeGame">Игра для вызова</label>
-          <select id="challengeGame">
-            <option value="checkers">Шашки</option>
-            <option value="giveaway">Поддавки</option>
-            <option value="corners">Уголки</option>
-            <option value="chess">Шахматы</option>
-            <option value="domino">Домино</option>
-            <option value="fives">Домино «Пятёрочки»</option>
-          </select>
           <button class="looking-opponent-button" id="lookingForOpponent" type="button">
             <span>⚔</span><b>Ищу соперника</b>
           </button>
@@ -130,8 +131,8 @@
       </div>
     </aside>
 
-    <section class="chat-panel">
-      <div class="chat-tabs"><button class="active" data-chat="global">Общий чат</button><button data-chat="table">За столом</button></div>
+    <section class="chat-panel" id="clubChatPanel">
+      <div class="chat-tabs"><button class="active" data-chat="global">Общий чат</button><button data-chat="table">За столом</button><button class="chat-collapse" id="chatCollapse" type="button" aria-expanded="true" aria-label="Свернуть чат" title="Свернуть чат"><span aria-hidden="true">−</span></button></div>
       <div class="messages" id="messages">
         <p class="system"><span>Список персонажей очищен.</span></p>
       </div>
@@ -414,23 +415,6 @@
             </div>
             <div class="activity-hours" id="activityHoursPreview" aria-label="Часы активности"></div>
           </fieldset>
-          <fieldset><legend>Причёска</legend><div class="choice-row" id="hairStyles">
-            <button type="button" data-style="hair-wave" class="selected">Волна</button>
-            <button type="button" data-style="hair-bob">Каре</button>
-            <button type="button" data-style="hair-bun">Пучок</button>
-            <button type="button" data-style="hair-short">Короткая</button>
-          </div></fieldset>
-          <fieldset><legend>Лицо</legend><div class="choice-row" id="faceStyles">
-            <button type="button" data-style="face-smile" class="selected">Улыбка</button>
-            <button type="button" data-style="face-calm">Спокойное</button>
-            <button type="button" data-style="face-freckles">Веснушки</button>
-          </div></fieldset>
-          <fieldset><legend>Усы</legend><div class="choice-row" id="mustacheStyles">
-            <button type="button" data-style="mustache-none" class="selected">Без усов</button>
-            <button type="button" data-style="mustache-thin">Тонкие</button>
-            <button type="button" data-style="mustache-classic">Классические</button>
-            <button type="button" data-style="mustache-handlebar">Закрученные</button>
-          </div></fieldset>
           <button id="saveAvatar" class="primary" value="default">Сохранить анкету</button>
         </div>
       </div>
@@ -671,6 +655,37 @@
       <b>Смотрите до конца, чтобы сохранить серию</b>
       <span id="rescueVideoProgress">Видео начинается…</span>
     </div>
+  </dialog>
+
+  <dialog class="opponent-search-dialog" id="opponentSearchDialog" aria-labelledby="opponentSearchTitle">
+    <form method="dialog">
+      <span class="eyebrow">Онлайн-матч</span>
+      <h2 id="opponentSearchTitle">Поиск соперника</h2>
+      <p>Укажите игру и желаемый уровень соперника. Объявление появится в общем чате и списке активных игроков.</p>
+      <p class="opponent-search-expiry"><b>Заявка активна только 30 секунд.</b> Затем она автоматически исчезнет, и поиск можно будет запустить заново.</p>
+      <label for="opponentSearchGame">Во что вы хотите сыграть?</label>
+      <select id="opponentSearchGame">
+        <option value="checkers">Шашки</option>
+        <option value="giveaway">Поддавки</option>
+        <option value="corners">Уголки</option>
+        <option value="chess">Шахматы</option>
+        <option value="domino">Домино</option>
+        <option value="fives">Домино «Пятёрочки»</option>
+      </select>
+      <label for="opponentSearchLevel">Какой уровень партии?</label>
+      <select id="opponentSearchLevel">
+        <option value="A1">А1 — очень лёгкий</option>
+        <option value="A2">А2 — лёгкий</option>
+        <option value="B1">Б1 — средний</option>
+        <option value="B2" selected>Б2 — выше среднего</option>
+        <option value="V1">В1 — сложный</option>
+        <option value="V2">В2 — продвинутый</option>
+      </select>
+      <div class="opponent-search-actions">
+        <button class="primary" id="startOpponentSearch" type="button">Опубликовать поиск</button>
+        <button class="result-secondary" id="cancelOpponentSearch" type="button">Отмена</button>
+      </div>
+    </form>
   </dialog>
 
   <dialog class="online-invitation-dialog" id="onlineInvitationDialog" aria-labelledby="onlineInvitationTitle">

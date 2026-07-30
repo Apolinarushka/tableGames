@@ -170,7 +170,8 @@
   margin-top: .22rem;
 }
 
-.online-invitation-dialog {
+.online-invitation-dialog,
+.opponent-search-dialog {
   width: min(31rem, calc(100vw - 2rem));
   border: 1px solid #9f7d43;
   border-radius: 1rem;
@@ -179,7 +180,8 @@
   box-shadow: 0 1.2rem 5rem rgb(0 0 0 / 62%);
 }
 
-.online-invitation-dialog::backdrop {
+.online-invitation-dialog::backdrop,
+.opponent-search-dialog::backdrop {
   background: rgb(3 12 8 / 76%);
   backdrop-filter: blur(5px);
 }
@@ -200,4 +202,73 @@
 .online-invitation-actions button {
   min-height: 2.7rem;
   flex: 1;
+}
+
+.opponent-search-dialog form {
+  display: grid;
+  gap: .55rem;
+  padding: 1.25rem;
+}
+
+.opponent-search-dialog h2,
+.opponent-search-dialog p {
+  margin: 0;
+}
+
+.opponent-search-dialog p {
+  margin-bottom: .45rem;
+  color: #bdc9c0;
+  line-height: 1.5;
+}
+
+.opponent-search-dialog .opponent-search-expiry {
+  padding: 11px 13px;
+  border: 1px solid rgb(217 181 94 / 42%);
+  border-radius: 10px;
+  color: #f4dfaa;
+  background: rgb(217 181 94 / 10%);
+}
+
+.opponent-search-dialog .opponent-search-expiry b {
+  color: #ffe29a;
+}
+
+.opponent-search-dialog label {
+  margin-top: .35rem;
+  color: #ead59d;
+  font-weight: 700;
+}
+
+.opponent-search-dialog select {
+  width: 100%;
+  min-height: 3rem;
+  padding: .65rem .7rem;
+  border: 1px solid rgb(202 164 94 / 35%);
+  border-radius: .55rem;
+  color: #f7edd6;
+  background: #102219;
+}
+
+.opponent-search-actions {
+  display: flex;
+  gap: .65rem;
+  margin-top: .7rem;
+}
+
+.opponent-search-actions button {
+  min-height: 2.9rem;
+  flex: 1;
+}
+
+.messages .search-announcement {
+  padding: .65rem;
+  border: 1px solid rgb(218 180 100 / 30%);
+  border-radius: .6rem;
+  background: rgb(82 67 30 / 24%);
+}
+
+.search-announcement .message-challenge {
+  align-self: stretch;
+  min-height: 2.25rem;
+  font-weight: 800;
 }

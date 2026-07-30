@@ -3,6 +3,7 @@ const arcadeNames={corners:"Уголки",chess:"Шахматы",domino:"Дом�
 let arcadeTableNo="01",arcadeMode=null,arcadeOver=false,arcadeTimer=null,arcadeRestartAction=null;
 let arcadeTimeline=[],arcadeTimelineIndex=-1,arcadeHistoryReview=false,arcadeAnalysisMode=false;
 let arcadeResultRecorded=false;
+let computerGameMenu=false;
 
 function cloneArcadeState(value){
   return typeof structuredClone==="function"?structuredClone(value):JSON.parse(JSON.stringify(value));
@@ -64,9 +65,9 @@ function restoreArcadePosition(snapshot){
 function resumeArcadeFromLatest(){
   arcadeHistoryReview=false;updateArcadeHistoryControls();
   if(arcadeOver)return;
-  if(arcadeMode==="corners"&&cornerTurn==="bot")arcadeTimer=setTimeout(cornerBotMove,380);
-  else if(arcadeMode==="chess"&&chessTurn===chessBotColor)arcadeTimer=setTimeout(chessBotMove,420);
-  else if(["domino","fives"].includes(arcadeMode)&&domino.turn==="bot")arcadeTimer=setTimeout(dominoBot,430);
+  if(arcadeMode==="corners"&&cornerTurn==="bot"&&!onlineHumanMatch("corners"))arcadeTimer=setTimeout(cornerBotMove,380);
+  else if(arcadeMode==="chess"&&chessTurn===chessBotColor&&!onlineHumanMatch("chess"))arcadeTimer=setTimeout(chessBotMove,420);
+  else if(["domino","fives"].includes(arcadeMode)&&domino.turn==="bot"&&!onlineHumanMatch(arcadeMode))arcadeTimer=setTimeout(dominoBot,430);
 }
 function stepArcadeHistory(direction){
   const next=arcadeTimelineIndex+direction;
@@ -82,15 +83,29 @@ function beginArcadeHistoryBranch(){
   arcadeHistoryReview=false;arcadeAnalysisMode=false;arcadeOver=false;hideArcadeResult();updateArcadeHistoryControls();
 }
 
-function openTableGameMenu(tableNo){
+function openTableGameMenu(tableNo,computerMode=false){
+  computerGameMenu=computerMode;
+  window.computerOpponentMode=computerMode;
   arcadeTableNo=String(tableNo);
-  arcadeEl("menuTableNumber").textContent=arcadeTableNo.padStart(2,"0");
-  arcadeEl("interaction").textContent="Выберите игру";
+  arcadeEl("menuTableNumber").textContent=computerMode?"ПК":arcadeTableNo.padStart(2,"0");
+  arcadeEl("interaction").textContent=computerMode?"Выберите игру против компьютера":"Выберите игру";
+  setActiveOpponent(null);
   if(!arcadeEl("gameMenuDialog").open)arcadeEl("gameMenuDialog").showModal();
+}
+function openComputerGameMenu(){
+  if(arcadeEl("gameDialog")?.open||arcadeEl("arcadeDialog")?.open)return;
+  window.clubOnline?.cancelSearch();
+  window.clubOnline?.leaveTable();
+  window.setOnlineOpponent?.(null);
+  leaveSeat();
+  openTableGameMenu("ПК",true);
 }
 function closeMenuToClub(){
   arcadeEl("gameMenuDialog").close();
   window.clubOnline?.leaveTable();
+  computerGameMenu=false;
+  window.computerOpponentMode=false;
+  setActiveOpponent(null);
   leaveSeat();
   arcadeEl("interaction").textContent="Подойдите к свободному столу";
 }
@@ -100,10 +115,11 @@ function hideArcadeResult(){
   overlay.classList.remove("is-win","is-loss","is-draw");
   arcadeRestartAction=null;
 }
-function cleanupArcade(){clearTimeout(arcadeTimer);arcadeTimer=null;arcadeOver=true;hideArcadeResult();closeWinStreakPopup();cancelLossRescue();clearArcadeTimeline();cancelCoinToss();document.querySelector(".arcade-shell")?.classList.remove("arcade-pending-toss");arcadeEl("arcadeMarketSlot").classList.add("hidden");arcadeEl("arcadeMarketSlot").innerHTML=""}
+function cleanupArcade(){clearTimeout(arcadeTimer);arcadeTimer=null;arcadeOver=true;pendingArcadeOnlineActions.length=0;hideArcadeResult();closeWinStreakPopup();cancelLossRescue();clearArcadeTimeline();cancelCoinToss();document.querySelector(".arcade-shell")?.classList.remove("arcade-pending-toss");arcadeEl("arcadeMarketSlot").classList.add("hidden");arcadeEl("arcadeMarketSlot").innerHTML=""}
 function openArcade(mode){
   arcadeMode=mode;currentGameMode=mode;arcadeOver=false;hideArcadeResult();clearArcadeTimeline();
-  window.clubOnline?.joinTable(arcadeTableNo,mode);
+  if(!onlineHumanMatch(mode))window.clubOnline?.cancelSearch();
+  if(!computerGameMenu)window.clubOnline?.joinTable(arcadeTableNo,mode);
   arcadeEl("arcadePlayerLabel").textContent="Вы";
   arcadeEl("arcadeBotLabel").textContent=opponentName();
   arcadeEl("arcadePlayerScore").classList.remove("fives-score");
@@ -118,12 +134,25 @@ function openArcade(mode){
   else if(mode==="chess")startChess();
   else startDomino(mode==="fives");
 }
+window.launchOnlineMatch=match=>{
+  if(!match)return;
+  computerGameMenu=false;
+  window.computerOpponentMode=false;
+  arcadeTableNo=String(match.tableNumber);
+  currentTableNo=String(match.tableNumber);
+  currentGameMode=match.game;
+  if(["checkers","giveaway"].includes(match.game))startGame(match.tableNumber,match.game);
+  else openArcade(match.game);
+};
 function backToGameMenu(){
-  cleanupArcade();arcadeEl("arcadeDialog").close();openTableGameMenu(arcadeTableNo);
+  cleanupArcade();arcadeEl("arcadeDialog").close();openTableGameMenu(arcadeTableNo,computerGameMenu);
 }
 function exitArcade(){
   cleanupArcade();arcadeEl("arcadeDialog").close();leaveSeat();
   window.clubOnline?.leaveTable();
+  computerGameMenu=false;
+  window.computerOpponentMode=false;
+  setActiveOpponent(null);
   arcadeEl("interaction").textContent="Подойдите к свободному столу";
 }
 function setArcadeRules(title,text){arcadeEl("arcadeRulesTitle").textContent=title;arcadeEl("arcadeRules").textContent=text}
@@ -193,14 +222,11 @@ arcadeEl("arcadeResultMenuButton").addEventListener("click",backToGameMenu);
 arcadeEl("arcadeHistoryBack").addEventListener("click",()=>stepArcadeHistory(-1));
 arcadeEl("arcadeHistoryForward").addEventListener("click",()=>stepArcadeHistory(1));
 postChat(arcadeEl("arcadeChatForm"),arcadeEl("arcadeChatInput"),arcadeEl("arcadeChatMessages"),true);
+arcadeEl("computerGameButton")?.addEventListener("click",openComputerGameMenu);
 document.querySelectorAll("[data-club-game]").forEach(button=>button.addEventListener("click",()=>{
   const mode=button.dataset.clubGame;
-  if(window.clubOnline?.isConnected()&&!window.onlineOpponentName){
-    toast("Сначала пригласите активного игрока или включите поиск соперника.");
-    return;
-  }
   if(mode==="checkers"||mode==="giveaway"){
-    window.clubOnline?.joinTable(arcadeTableNo,mode);
+    if(!computerGameMenu)window.clubOnline?.joinTable(arcadeTableNo,mode);
     arcadeEl("gameMenuDialog").close();startGame(arcadeTableNo,mode);
   }else openArcade(mode);
 }));
@@ -213,12 +239,13 @@ function startCorners(){
   cornerBoard=Array.from({length:8},()=>Array(8).fill(null));
   for(let r=0;r<3;r++)for(let c=0;c<3;c++)cornerBoard[r][c]="bot";
   for(let r=5;r<8;r++)for(let c=5;c<8;c++)cornerBoard[r][c]="player";
-  cornerTurn="player";cornerSelected=null;cornerChain=null;cornerLast=null;arcadeOver=false;
+  const match=onlineHumanMatch("corners");
+  cornerTurn=match&&match.players[0].id!==match.me.id?"bot":"player";cornerSelected=null;cornerChain=null;cornerLast=null;arcadeOver=false;
   arcadeEl("arcadePlayerScore").textContent="9";arcadeEl("arcadeBotScore").textContent="9";
   setArcadeRules("Как играть","Переведите все девять фишек в противоположный угол. Можно ходить на соседнюю клетку или перепрыгивать через любую фишку. После прыжка разрешена цепочка прыжков.");
   arcadeEl("arcadeInfo").textContent="Ваша цель — верхний левый угол.";
   startMatchConversation(arcadeEl("arcadeChatMessages"),"corners");
-  setArcadeActions([]);renderCorners();resetArcadeTimeline();
+  setArcadeActions([]);renderCorners();resetArcadeTimeline();flushPendingArcadeOnlineActions();
 }
 function cornerMoves(r,c,jumpsOnly=false,state=cornerBoard){
   const out=[];
@@ -294,8 +321,10 @@ function cornerWon(color,state=cornerBoard){
 }
 function endCornerTurn(){
   setArcadeActions([]);cornerSelected=null;cornerChain=null;
+  if(onlineHumanMatch("corners"))sendOnlineGameAction({kind:"corners_state",board:cloneArcadeState(cornerBoard)});
   if(cornerWon("player")){renderCorners();pushArcadePosition();finishArcade(true,"Все ваши фишки заняли лагерь соперника.",startCorners);return}
-  cornerTurn="bot";renderCorners();pushArcadePosition();arcadeTimer=setTimeout(cornerBotMove,380);
+  cornerTurn="bot";renderCorners();pushArcadePosition();
+  if(!onlineHumanMatch("corners"))arcadeTimer=setTimeout(cornerBotMove,380);
 }
 function cornerBotMove(){
   if(arcadeOver)return;
@@ -329,6 +358,7 @@ function cornerBotMove(){
 
 /* ---------- Chess ---------- */
 let chessBoard,chessTurn,chessSelected,chessLastMove,chessHistory,chessHalfmove,chessPlayerColor="white",chessBotColor="black";
+const pendingArcadeOnlineActions=[];
 const chessSymbols={white:{k:"♔",q:"♕",r:"♖",b:"♗",n:"♘",p:"♙"},black:{k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"}};
 function startChess(){
   arcadeResultRecorded=false;closeWinStreakPopup();
@@ -337,7 +367,8 @@ function startChess(){
   arcadeEl("arcadeInfo").textContent="Сначала разыграем цвет фигур и первый ход.";
   startMatchConversation(arcadeEl("arcadeChatMessages"),"chess","Сначала разыграем цвет фигур.");
   setArcadeActions([]);
-  runCoinToss("Шахматы",({color})=>initializeChess(color));
+  const match=onlineHumanMatch("chess");
+  runCoinToss("Шахматы",({color})=>initializeChess(color),"color",match?match.coinResult:null,match?{color:match.me.color}:null);
 }
 function initializeChess(color){
   chessPlayerColor=color;chessBotColor=color==="white"?"black":"white";
@@ -351,7 +382,8 @@ function initializeChess(color){
   arcadeEl("arcadeInfo").textContent=color==="white"?"Решка: вы играете белыми и ходите первой.":`Орёл: вы играете чёрными. ${opponentName()} начинает белыми.`;
   document.querySelector(".arcade-shell")?.classList.remove("arcade-pending-toss");
   setArcadeActions([]);renderChess();resetArcadeTimeline();
-  if(chessTurn===chessBotColor)arcadeTimer=setTimeout(chessBotMove,520);
+  flushPendingArcadeOnlineActions();
+  if(chessTurn===chessBotColor&&!onlineHumanMatch("chess"))arcadeTimer=setTimeout(chessBotMove,520);
 }
 function cloneChess(state){return state.map(row=>row.map(piece=>piece?{...piece}:null))}
 function chessHash(state,color){
@@ -448,9 +480,12 @@ function chessClick(r,c){
   }}
   chessSelected=chessBoard[r][c]?.color===chessPlayerColor?[r,c]:null;renderChess();
 }
-function playChessMove(move){
+function playChessMove(move,source="local"){
   beginArcadeHistoryBranch();
   const piece=chessBoard[move.from[0]][move.from[1]],isCapture=Boolean(chessBoard[move.to[0]][move.to[1]]||move.enPassant);
+  if(source==="local"&&piece.color===chessPlayerColor&&onlineHumanMatch("chess")){
+    sendOnlineGameAction({kind:"chess_move",move:cloneArcadeState(move)});
+  }
   chessBoard=chessApply(move);chessLastMove={...move,piece:piece.type,color:piece.color};chessSelected=null;chessTurn=piece.color==="white"?"black":"white";
   const attackedPieces=chessPseudo(move.to[0],move.to[1],chessBoard,true)
     .filter(candidate=>chessBoard[candidate.to[0]]?.[candidate.to[1]]?.color===chessTurn).length;
@@ -462,7 +497,7 @@ function playChessMove(move){
   else if(move.enPassant){technique="взятие на проходе";reason="используется особое право немедленного взятия пешки";}
   if(technique)announceTechnique(technique,piece.color===chessPlayerColor?"player":"opponent",reason);
   chessHalfmove=piece.type==="p"||isCapture?0:chessHalfmove+1;chessHistory.push(chessHash(chessBoard,chessTurn));renderChess();pushArcadePosition();
-  if(chessEnd())return;if(chessTurn===chessBotColor)arcadeTimer=setTimeout(chessBotMove,420);
+  if(chessEnd())return;if(chessTurn===chessBotColor&&!onlineHumanMatch("chess"))arcadeTimer=setTimeout(chessBotMove,420);
 }
 function chessValue(state){const values={p:100,n:320,b:330,r:500,q:900,k:20000};return state.flat().reduce((sum,p)=>sum+(p?(p.color===chessBotColor?1:-1)*values[p.type]:0),0)}
 function chessBotMove(){
@@ -495,6 +530,64 @@ function chessBotMove(){
   }
   if(best)playChessMove(best);else chessEnd();
 }
+function applyOnlineChessAction(action){
+  if(!action||action.kind!=="chess_move"||!onlineHumanMatch("chess"))return;
+  if(arcadeMode!=="chess"||arcadeOver){
+    pendingArcadeOnlineActions.push({game:"chess",action});
+    return;
+  }
+  const incoming=action.move;
+  const move=chessLegal(chessBotColor).find(candidate=>
+    sameCell(candidate.from,incoming?.from)&&sameCell(candidate.to,incoming?.to)
+  );
+  if(move)playChessMove({...move,promoteTo:incoming.promoteTo},"remote");
+}
+function applyOnlineCornersAction(action){
+  if(!action||action.kind!=="corners_state"||!onlineHumanMatch("corners"))return;
+  if(arcadeMode!=="corners"||arcadeOver){
+    pendingArcadeOnlineActions.push({game:"corners",action});
+    return;
+  }
+  const source=action.board;
+  if(!Array.isArray(source)||source.length!==8)return;
+  cornerBoard=Array.from({length:8},(_,r)=>Array.from({length:8},(_,c)=>{
+    const value=source[7-r]?.[7-c];
+    return value==="player"?"bot":value==="bot"?"player":null;
+  }));
+  cornerSelected=null;cornerChain=null;cornerLast=null;
+  if(cornerWon("bot")){
+    renderCorners();pushArcadePosition();
+    finishArcade(false,`${opponentName()} первым занял ваш угол.`,startCorners);
+    return;
+  }
+  cornerTurn="player";renderCorners();pushArcadePosition();
+}
+function applyOnlineDominoAction(game,action){
+  if(!action||action.kind!=="domino_state"||!onlineHumanMatch(game))return;
+  if(arcadeMode!==game||arcadeOver){
+    pendingArcadeOnlineActions.push({game,action});
+    return;
+  }
+  domino=restoreOnlineDominoSnapshot(action.state||{});
+  renderDomino();pushArcadePosition();
+  if(domino.bot.length===0){
+    dominoRoundEnd("bot");
+    return;
+  }
+  if(domino.fives&&domino.score.bot>=100){
+    finishFivesMatch("bot",`${opponentName()} первым набрал 100 очков.`);
+  }
+}
+function receiveOnlineArcadeAction(game,action){
+  if(game==="chess")applyOnlineChessAction(action);
+  else if(game==="corners")applyOnlineCornersAction(action);
+  else if(["domino","fives"].includes(game))applyOnlineDominoAction(game,action);
+}
+function flushPendingArcadeOnlineActions(){
+  const queued=pendingArcadeOnlineActions.splice(0);
+  queued.forEach(item=>receiveOnlineArcadeAction(item.game,item.action));
+}
+window.receiveOnlineArcadeAction=receiveOnlineArcadeAction;
 function chessEnd(){
   const currentHash=chessHash(chessBoard,chessTurn);
   if(chessHistory.filter(item=>item===currentHash).length>=3){
@@ -540,7 +633,11 @@ function chessEnd(){
 /* ---------- Domino and All Fives ---------- */
 let domino;
 function dominoSet(){const tiles=[];for(let a=0;a<=6;a++)for(let b=a;b<=6;b++)tiles.push([a,b]);return tiles}
-function shuffle(items){const out=[...items];for(let i=out.length-1;i;i--){const j=Math.floor(Math.random()*(i+1));[out[i],out[j]]=[out[j],out[i]]}return out}
+function onlineSeededRandom(match){
+  let state=Number(BigInt(match.seed||"1")%2147483647n)||1;
+  return()=>{state=state*16807%2147483647;return(state-1)/2147483646};
+}
+function shuffle(items,random=Math.random){const out=[...items];for(let i=out.length-1;i;i--){const j=Math.floor(random()*(i+1));[out[i],out[j]]=[out[j],out[i]]}return out}
 function roundToFive(points){return Math.round(points/5)*5}
 function awardFives(who,points){
   if(!points||points%5)return;
@@ -562,8 +659,11 @@ function startDomino(fives=false,keepScore=false,forcedStarter=null){
   const score=keepScore&&domino?domino.score:{player:0,bot:0};
   const fiveCounts=keepScore&&domino?domino.fiveCounts:{player:0,bot:0};
   const eggs=keepScore&&domino&&!fives?domino.eggs:0;
-  const pile=shuffle(dominoSet());
-  domino={fives,player:pile.splice(0,7),bot:pile.splice(0,7),stock:pile,chain:[],turn:fives?"waiting":"player",passes:0,score,fiveCounts,eggs,pending:null,lastScore:null,revealHands:false,home:null,tileSeq:0};
+  const match=onlineHumanMatch(fives?"fives":"domino");
+  const pile=shuffle(dominoSet(),match?onlineSeededRandom(match):Math.random);
+  const firstHand=pile.splice(0,7),secondHand=pile.splice(0,7);
+  const firstPlayerIsLocal=!match||match.players[0].id===match.me.id;
+  domino={fives,player:firstPlayerIsLocal?firstHand:secondHand,bot:firstPlayerIsLocal?secondHand:firstHand,stock:pile,chain:[],turn:fives?"waiting":"player",passes:0,score,fiveCounts,eggs,pending:null,lastScore:null,revealHands:false,home:null,tileSeq:0};
   if(!keepScore)startMatchConversation(arcadeEl("arcadeChatMessages"),fives?"fives":"domino",fives?"Сначала разыграем право первого хода.":"Партия начинается.");
   arcadeOver=fives;
   setArcadeRules(
@@ -580,8 +680,9 @@ function startDomino(fives=false,keepScore=false,forcedStarter=null){
       domino.turn=starter;arcadeOver=false;
       document.querySelector(".arcade-shell")?.classList.remove("arcade-pending-toss");
       renderDomino();resetArcadeTimeline();
-      if(domino.turn==="bot")arcadeTimer=setTimeout(dominoBot,430);
-    },"firstMove");
+      flushPendingArcadeOnlineActions();
+      if(domino.turn==="bot"&&!match)arcadeTimer=setTimeout(dominoBot,430);
+    },"firstMove",match?match.coinResult:null,match?{starter:match.starterId===match.me.id?"player":"bot"}:null);
     return;
   }
   const starts=[],eligible=forcedStarter?[forcedStarter]:["player","bot"];
@@ -591,7 +692,7 @@ function startDomino(fives=false,keepScore=false,forcedStarter=null){
   domino.chain.push(openingTile);
   domino.turn=opener.who==="player"?"bot":"player";
   arcadeOver=false;
-  setArcadeActions([]);renderDomino();resetArcadeTimeline();if(domino.turn==="bot")arcadeTimer=setTimeout(dominoBot,430);
+  setArcadeActions([]);renderDomino();resetArcadeTimeline();flushPendingArcadeOnlineActions();if(domino.turn==="bot"&&!match)arcadeTimer=setTimeout(dominoBot,430);
 }
 function dominoSides(tile){
   if(!domino.chain.length)return["right"];const left=domino.chain[0][0],right=domino.chain.at(-1)[1],sides=[],homePriority=[];
@@ -799,6 +900,42 @@ function dominoOpenEndsText(){
   }
   return ends.join(" + ");
 }
+function encodeOnlineDominoTile(tile){return[tile[0],tile[1],Number(tile._dominoId)||0]}
+function decodeOnlineDominoTile(tile){
+  const decoded=[Number(tile?.[0])||0,Number(tile?.[1])||0];
+  if(Number(tile?.[2]))decoded._dominoId=Number(tile[2]);
+  return decoded;
+}
+function onlineDominoSnapshot(turnOverride=null){
+  const snapshot={...domino,turn:turnOverride||domino.turn,pending:null};
+  for(const key of["player","bot","stock","chain"])snapshot[key]=domino[key].map(encodeOnlineDominoTile);
+  snapshot.score={...domino.score};snapshot.fiveCounts={...domino.fiveCounts};
+  snapshot.lastScore=domino.lastScore?{...domino.lastScore}:null;
+  snapshot.home=domino.home?{
+    ...domino.home,
+    top:domino.home.top.map(encodeOnlineDominoTile),
+    bottom:domino.home.bottom.map(encodeOnlineDominoTile)
+  }:null;
+  return snapshot;
+}
+function restoreOnlineDominoSnapshot(source){
+  const restored={...source,pending:null};
+  for(const key of["player","bot","stock","chain"])restored[key]=(source[key]||[]).map(decodeOnlineDominoTile);
+  restored.home=source.home?{
+    ...source.home,
+    top:(source.home.top||[]).map(decodeOnlineDominoTile),
+    bottom:(source.home.bottom||[]).map(decodeOnlineDominoTile)
+  }:null;
+  [restored.player,restored.bot]=[restored.bot,restored.player];
+  restored.score={player:Number(source.score?.bot)||0,bot:Number(source.score?.player)||0};
+  restored.fiveCounts={player:Number(source.fiveCounts?.bot)||0,bot:Number(source.fiveCounts?.player)||0};
+  restored.turn=source.turn==="player"?"bot":source.turn==="bot"?"player":source.turn;
+  if(restored.lastScore)restored.lastScore.who=restored.lastScore.who==="player"?"bot":"player";
+  return restored;
+}
+function sendOnlineDominoState(turnOverride=null){
+  if(onlineHumanMatch(arcadeMode))sendOnlineGameAction({kind:"domino_state",state:onlineDominoSnapshot(turnOverride)});
+}
 function dominoPlay(who,index,side){
   beginArcadeHistoryBranch();
   const hand=domino[who],tile=hand.splice(index,1)[0],placed=orientDomino(tile,side);
@@ -820,21 +957,24 @@ function dominoPlay(who,index,side){
     }
     if(technique)announceTechnique(technique,who==="player"?"player":"opponent",reason);
     if(domino.score[who]>=100){
+      if(who==="player")sendOnlineDominoState("bot");
       pushArcadePosition();
       finishFivesMatch(who,who==="player"?"Вы первыми набрали 100 очков.":`${opponentName()} первым набрал 100 очков.`);
       return;
     }
   }else if(technique)announceTechnique(technique,who==="player"?"player":"opponent",reason);
-  if(!hand.length){pushArcadePosition();dominoRoundEnd(who);return}
-  domino.turn=who==="player"?"bot":"player";renderDomino();pushArcadePosition();if(domino.turn==="bot")arcadeTimer=setTimeout(dominoBot,430);
+  if(!hand.length){if(who==="player")sendOnlineDominoState("bot");pushArcadePosition();dominoRoundEnd(who);return}
+  domino.turn=who==="player"?"bot":"player";
+  if(who==="player")sendOnlineDominoState();
+  renderDomino();pushArcadePosition();if(domino.turn==="bot"&&!onlineHumanMatch(arcadeMode))arcadeTimer=setTimeout(dominoBot,430);
 }
 function dominoDraw(){
   if(arcadeOver||domino.turn!=="player"||!domino.stock.length||domino.player.some(tile=>dominoSides(tile).length))return;
-  beginArcadeHistoryBranch();domino.player.push(domino.stock.pop());domino.pending=null;renderDomino();pushArcadePosition();
+  beginArcadeHistoryBranch();domino.player.push(domino.stock.pop());domino.pending=null;sendOnlineDominoState();renderDomino();pushArcadePosition();
 }
 function dominoPass(who){
-  beginArcadeHistoryBranch();domino.passes++;if(domino.passes>=2){const pp=domino.player.flat().reduce((a,b)=>a+b,0),bp=domino.bot.flat().reduce((a,b)=>a+b,0);pushArcadePosition();dominoRoundEnd(pp===bp?null:pp<bp?"player":"bot");return}
-  domino.turn=who==="player"?"bot":"player";renderDomino();pushArcadePosition();if(domino.turn==="bot")arcadeTimer=setTimeout(dominoBot,350);
+  beginArcadeHistoryBranch();domino.passes++;if(domino.passes>=2){const pp=domino.player.flat().reduce((a,b)=>a+b,0),bp=domino.bot.flat().reduce((a,b)=>a+b,0);if(who==="player")sendOnlineDominoState("bot");pushArcadePosition();dominoRoundEnd(pp===bp?null:pp<bp?"player":"bot");return}
+  domino.turn=who==="player"?"bot":"player";if(who==="player")sendOnlineDominoState();renderDomino();pushArcadePosition();if(domino.turn==="bot"&&!onlineHumanMatch(arcadeMode))arcadeTimer=setTimeout(dominoBot,350);
 }
 function dominoProjectedEnds(tile,side,placed){
   const endpoint=piece=>piece[1]*(piece[0]===piece[1]?2:1);

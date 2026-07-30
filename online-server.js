@@ -11,6 +11,20 @@ const pool = new Pool({
 
 const sockets = new Set();
 const sessionCookieName = "table_games_session";
+const supportedGames = new Set(["checkers", "giveaway", "corners", "chess", "domino", "fives"]);
+const supportedLevels = new Set(["A1", "A2", "B1", "B2", "V1", "V2"]);
+const searchRequestTtlMs = 30_000;
+const roomPresence = new Map();
+
+function tableX(tableNumber) {
+  const panel = Math.floor((Number(tableNumber) - 1) / 3);
+  return panel * 100 + [20, 50, 80][(Number(tableNumber) - 1) % 3];
+}
+
+function guestSpawnX(guestSlot) {
+  const tableNumber = Math.ceil(Number(guestSlot) / 2);
+  return tableX(tableNumber) + (Number(guestSlot) % 2 ? -7 : 7);
+}
 
 function safeText(value, maxLength) {
   return String(value || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, maxLength);
@@ -91,6 +105,16 @@ function safeInteger(value, fallback, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, Math.round(number)));
 }
 
+function safeGame(value) {
+  const game = safeText(value, 40);
+  return supportedGames.has(game) ? game : "checkers";
+}
+
+function safeLevel(value) {
+  const level = safeText(value, 8);
+  return supportedLevels.has(level) ? level : "B1";
+}
+
 function sanitizeProfile(value) {
   const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   const allowedPhoto = typeof source.photo === "string"
@@ -165,19 +189,33 @@ async function initializeDatabase() {
       connected boolean NOT NULL DEFAULT false,
       looking_for_opponent boolean NOT NULL DEFAULT false,
       looking_game text,
+      looking_level text,
+      looking_started_at timestamptz,
+      guest_slot integer,
       last_seen timestamptz NOT NULL DEFAULT now()
     );
     ALTER TABLE club_players ADD COLUMN IF NOT EXISTS looking_for_opponent boolean NOT NULL DEFAULT false;
     ALTER TABLE club_players ADD COLUMN IF NOT EXISTS looking_game text;
+    ALTER TABLE club_players ADD COLUMN IF NOT EXISTS looking_level text;
+    ALTER TABLE club_players ADD COLUMN IF NOT EXISTS looking_started_at timestamptz;
+    ALTER TABLE club_players ADD COLUMN IF NOT EXISTS guest_slot integer;
+    CREATE UNIQUE INDEX IF NOT EXISTS club_players_active_guest_slot_idx
+      ON club_players(guest_slot)
+      WHERE connected = true AND guest_slot IS NOT NULL;
     ALTER TABLE club_players ADD COLUMN IF NOT EXISTS profile jsonb NOT NULL DEFAULT '{}'::jsonb;
     ALTER TABLE club_players ADD COLUMN IF NOT EXISTS profile_completed boolean NOT NULL DEFAULT false;
     CREATE TABLE IF NOT EXISTS club_tables (
-      table_number integer PRIMARY KEY CHECK (table_number BETWEEN 1 AND 5),
+      table_number integer PRIMARY KEY,
       player_one text REFERENCES club_players(session_id) ON DELETE SET NULL,
       player_two text REFERENCES club_players(session_id) ON DELETE SET NULL,
+      player_one_seat text,
+      player_two_seat text,
       selected_game text,
       updated_at timestamptz NOT NULL DEFAULT now()
     );
+    ALTER TABLE club_tables DROP CONSTRAINT IF EXISTS club_tables_table_number_check;
+    ALTER TABLE club_tables ADD COLUMN IF NOT EXISTS player_one_seat text;
+    ALTER TABLE club_tables ADD COLUMN IF NOT EXISTS player_two_seat text;
     CREATE TABLE IF NOT EXISTS club_chat (
       id bigserial PRIMARY KEY,
       session_id text REFERENCES club_players(session_id) ON DELETE SET NULL,
@@ -194,26 +232,58 @@ async function initializeDatabase() {
       from_session text NOT NULL REFERENCES club_players(session_id) ON DELETE CASCADE,
       to_session text NOT NULL REFERENCES club_players(session_id) ON DELETE CASCADE,
       game text NOT NULL DEFAULT 'checkers',
+      level text NOT NULL DEFAULT 'B1',
       table_number integer,
       status text NOT NULL DEFAULT 'pending',
       created_at timestamptz NOT NULL DEFAULT now()
     );
+    ALTER TABLE club_invitations ADD COLUMN IF NOT EXISTS level text NOT NULL DEFAULT 'B1';
   `);
   await pool.query(`
     INSERT INTO club_tables(table_number)
-    SELECT value FROM generate_series(1, 5) AS value
+    SELECT value FROM generate_series(1, 3) AS value
     ON CONFLICT (table_number) DO NOTHING
   `);
-  await pool.query("UPDATE club_players SET connected = false, looking_for_opponent = false");
-  await pool.query("UPDATE club_tables SET player_one = NULL, player_two = NULL, updated_at = now()");
+  await pool.query("UPDATE club_players SET connected = false, looking_for_opponent = false, looking_game = NULL, looking_level = NULL, looking_started_at = NULL, guest_slot = NULL");
+  await pool.query("UPDATE club_tables SET player_one = NULL, player_two = NULL, player_one_seat = NULL, player_two_seat = NULL, updated_at = now()");
 }
 
 async function getSnapshot() {
+  await expireSearchRequests();
+  const capacityResult = await pool.query(`
+    SELECT GREATEST(
+      3,
+      CEIL(COUNT(*)::numeric / 2)::integer,
+      COALESCE((
+        SELECT MAX(table_number)
+        FROM club_tables
+        WHERE player_one IS NOT NULL OR player_two IS NOT NULL
+      ), 3)
+    ) AS "tableCount"
+    FROM club_players
+    WHERE connected = true
+  `);
+  const tableCount = Number(capacityResult.rows[0]?.tableCount) || 3;
+  await pool.query(`
+    INSERT INTO club_tables(table_number)
+    SELECT value FROM generate_series(1, $1) AS value
+    ON CONFLICT (table_number) DO NOTHING
+  `, [tableCount]);
   const [playersResult, tablesResult, chatResult, tableChatResult, invitationsResult] = await Promise.all([
     pool.query(`
       SELECT session_id AS id, nickname,
-             looking_for_opponent AS "lookingForOpponent",
-             looking_game AS "lookingGame"
+             (looking_for_opponent AND looking_started_at > now() - interval '30 seconds') AS "lookingForOpponent",
+             looking_game AS "lookingGame",
+             looking_level AS "lookingLevel",
+             guest_slot AS "guestSlot",
+             CASE
+               WHEN looking_for_opponent AND looking_started_at IS NOT NULL
+               THEN GREATEST(
+                 0,
+                 CEIL(EXTRACT(EPOCH FROM (looking_started_at + interval '30 seconds' - now())))
+               )::integer
+               ELSE 0
+             END AS "lookingSecondsLeft"
       FROM club_players
       WHERE connected = true
       ORDER BY nickname
@@ -221,13 +291,14 @@ async function getSnapshot() {
     pool.query(`
       SELECT t.table_number AS "tableNumber", t.selected_game AS game,
              p1.nickname AS "playerOne", p2.nickname AS "playerTwo",
-             t.player_one AS "playerOneId", t.player_two AS "playerTwoId"
+             t.player_one AS "playerOneId", t.player_two AS "playerTwoId",
+             t.player_one_seat AS "playerOneSeat", t.player_two_seat AS "playerTwoSeat"
       FROM club_tables t
       LEFT JOIN club_players p1 ON p1.session_id = t.player_one
       LEFT JOIN club_players p2 ON p2.session_id = t.player_two
-      WHERE t.table_number <= 3
+      WHERE t.table_number <= $1
       ORDER BY t.table_number
-    `),
+    `, [tableCount]),
     pool.query(`
       SELECT id, session_id AS "senderId", nickname, message,
              to_char(created_at AT TIME ZONE 'Europe/Moscow', 'HH24:MI') AS time
@@ -241,14 +312,14 @@ async function getSnapshot() {
              table_number AS "tableNumber",
              to_char(created_at AT TIME ZONE 'Europe/Moscow', 'HH24:MI') AS time
       FROM club_chat
-      WHERE channel = 'table'
+      WHERE channel = 'table' AND table_number <= $1
       ORDER BY id DESC
       LIMIT 100
-    `),
+    `, [tableCount]),
     pool.query(`
       SELECT i.id, i.from_session AS "fromId", i.to_session AS "toId",
              sender.nickname AS "fromName", recipient.nickname AS "toName",
-             i.game, i.table_number AS "tableNumber", i.status,
+             i.game, i.level, i.table_number AS "tableNumber", i.status,
              to_char(i.created_at AT TIME ZONE 'Europe/Moscow', 'HH24:MI') AS time
       FROM club_invitations i
       JOIN club_players sender ON sender.session_id = i.from_session
@@ -257,8 +328,17 @@ async function getSnapshot() {
       ORDER BY i.created_at DESC
     `)
   ]);
+  for (const player of playersResult.rows) {
+    const presence = roomPresence.get(player.id);
+    const fallbackX = guestSpawnX(Number(player.guestSlot) || 1);
+    player.roomX = presence?.x ?? fallbackX;
+    player.roomY = presence?.y ?? 69;
+    player.roomFacing = presence?.facing || "left";
+  }
   return {
     type: "snapshot",
+    tableCount,
+    roomWidthUnits: Math.ceil(tableCount / 3) * 100,
     onlineCount: playersResult.rows.length,
     players: playersResult.rows,
     tables: tablesResult.rows,
@@ -279,56 +359,178 @@ async function registerPlayer(socket, data) {
   const proposed = safeText(data.sessionId, 80);
   socket.sessionId = proposed || crypto.randomUUID();
   socket.nickname = safeText(data.nickname, 32) || `Игрок-${socket.sessionId.slice(0, 4)}`;
-  await pool.query(`
-    INSERT INTO club_players(session_id, nickname, connected, last_seen)
-    VALUES ($1, $2, true, now())
-    ON CONFLICT (session_id) DO UPDATE
-    SET nickname = EXCLUDED.nickname, connected = true, last_seen = now()
-  `, [socket.sessionId, socket.nickname]);
+  const client = await pool.connect();
+  let guestSlot;
+  try {
+    await client.query("BEGIN");
+    await client.query("LOCK TABLE club_players IN SHARE ROW EXCLUSIVE MODE");
+    const existing = await client.query(
+      "SELECT guest_slot FROM club_players WHERE session_id = $1 FOR UPDATE",
+      [socket.sessionId]
+    );
+    guestSlot = Number(existing.rows[0]?.guest_slot) || null;
+    if (!guestSlot) {
+      const freeSlot = await client.query(`
+        WITH limits AS (
+          SELECT COALESCE(MAX(guest_slot), 0) + 1 AS maximum
+          FROM club_players
+          WHERE connected = true
+        )
+        SELECT slot
+        FROM limits, generate_series(1, limits.maximum) AS slot
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM club_players
+          WHERE connected = true AND guest_slot = slot
+        )
+        ORDER BY slot
+        LIMIT 1
+      `);
+      guestSlot = Number(freeSlot.rows[0]?.slot) || null;
+    }
+    await client.query(`
+      INSERT INTO club_players(session_id, nickname, connected, guest_slot, last_seen)
+      VALUES ($1, $2, true, $3, now())
+      ON CONFLICT (session_id) DO UPDATE
+      SET nickname = EXCLUDED.nickname,
+          connected = true,
+          guest_slot = EXCLUDED.guest_slot,
+          last_seen = now()
+    `, [socket.sessionId, socket.nickname, guestSlot]);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+  socket.guestSlot = guestSlot;
+  if (!roomPresence.has(socket.sessionId)) {
+    roomPresence.set(socket.sessionId, {
+      x: guestSpawnX(guestSlot),
+      y: 69,
+      facing: "left"
+    });
+  }
   socket.send(JSON.stringify({
     type: "welcome",
     sessionId: socket.sessionId,
-    nickname: socket.nickname
+    nickname: socket.nickname,
+    guestSlot
   }));
   await broadcastSnapshot();
+}
+
+function updateRoomPresence(socket, data) {
+  if (!socket.sessionId) return;
+  const activeSessions = new Set(
+    [...sockets]
+      .filter(item => item.sessionId && item.readyState === WebSocket.OPEN)
+      .map(item => item.sessionId)
+  );
+  const tableCount = Math.max(3, Math.ceil(activeSessions.size / 2));
+  const roomWidth = Math.ceil(tableCount / 3) * 100;
+  const x = Math.max(7, Math.min(roomWidth - 4, Number(data.x) || 94));
+  const y = 69;
+  const facing = data.facing === "right" ? "right" : "left";
+  roomPresence.set(socket.sessionId, {x, y, facing});
+  const encoded = JSON.stringify({
+    type: "room_presence",
+    playerId: socket.sessionId,
+    x,
+    y,
+    facing
+  });
+  for (const client of sockets) {
+    if (client !== socket && client.readyState === WebSocket.OPEN) client.send(encoded);
+  }
 }
 
 async function joinTable(socket, data) {
   if (!socket.sessionId) return;
   const tableNumber = Number(data.tableNumber);
-  if (!Number.isInteger(tableNumber) || tableNumber < 1 || tableNumber > 3) return;
+  if (!Number.isInteger(tableNumber) || tableNumber < 1 || tableNumber > 1000) return;
   const game = safeText(data.game, 40) || null;
+  const requestedSeat = data.seatSide === "right"
+    ? "right"
+    : data.seatSide === "left"
+      ? "left"
+      : null;
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    await client.query(
+      "INSERT INTO club_tables(table_number) VALUES ($1) ON CONFLICT (table_number) DO NOTHING",
+      [tableNumber]
+    );
     await client.query(`
       UPDATE club_tables
-      SET player_one = CASE WHEN player_one = $1 THEN NULL ELSE player_one END,
+      SET player_one_seat = CASE WHEN player_one = $1 THEN NULL ELSE player_one_seat END,
+          player_two_seat = CASE WHEN player_two = $1 THEN NULL ELSE player_two_seat END,
+          player_one = CASE WHEN player_one = $1 THEN NULL ELSE player_one END,
           player_two = CASE WHEN player_two = $1 THEN NULL ELSE player_two END,
           updated_at = now()
       WHERE table_number <> $2
     `, [socket.sessionId, tableNumber]);
     const current = await client.query(
-      "SELECT player_one, player_two FROM club_tables WHERE table_number = $1 FOR UPDATE",
+      "SELECT player_one, player_two, player_one_seat, player_two_seat FROM club_tables WHERE table_number = $1 FOR UPDATE",
       [tableNumber]
     );
     const table = current.rows[0];
-    if (table.player_one !== socket.sessionId && table.player_two !== socket.sessionId) {
-      if (!table.player_one) {
-        await client.query(
-          "UPDATE club_tables SET player_one = $1, selected_game = COALESCE($2, selected_game), updated_at = now() WHERE table_number = $3",
-          [socket.sessionId, game, tableNumber]
-        );
-      } else if (!table.player_two) {
-        await client.query(
-          "UPDATE club_tables SET player_two = $1, selected_game = COALESCE($2, selected_game), updated_at = now() WHERE table_number = $3",
-          [socket.sessionId, game, tableNumber]
-        );
-      } else {
-        socket.send(JSON.stringify({type: "error", message: "Этот стол уже занят двумя игроками."}));
-      }
+    const currentSlot = table.player_one === socket.sessionId
+      ? "one"
+      : table.player_two === socket.sessionId
+        ? "two"
+        : null;
+    const occupiedSeats = new Map();
+    if (table.player_one) occupiedSeats.set(table.player_one_seat || "left", table.player_one);
+    if (table.player_two) occupiedSeats.set(table.player_two_seat || "right", table.player_two);
+    const currentSeat = currentSlot === "one"
+      ? table.player_one_seat
+      : currentSlot === "two"
+        ? table.player_two_seat
+        : null;
+    const seatSide = requestedSeat || currentSeat || (!occupiedSeats.has("left") ? "left" : "right");
+    const seatOwner = occupiedSeats.get(seatSide);
+
+    if (seatOwner && seatOwner !== socket.sessionId) {
+      await client.query("ROLLBACK");
+      socket.send(JSON.stringify({
+        type: "error",
+        code: "seat_taken",
+        message: "Этот стул уже занят другой гостьей."
+      }));
+      return;
+    }
+
+    const slot = currentSlot || (!table.player_one ? "one" : !table.player_two ? "two" : null);
+    if (!slot) {
+      await client.query("ROLLBACK");
+      socket.send(JSON.stringify({
+        type: "error",
+        code: "table_full",
+        message: "Этот стол уже занят двумя игроками."
+      }));
+      return;
+    }
+
+    if (slot === "one") {
+      await client.query(`
+        UPDATE club_tables
+        SET player_one = $1, player_one_seat = $2,
+            selected_game = COALESCE($3, selected_game), updated_at = now()
+        WHERE table_number = $4
+      `, [socket.sessionId, seatSide, game, tableNumber]);
+    } else {
+      await client.query(`
+        UPDATE club_tables
+        SET player_two = $1, player_two_seat = $2,
+            selected_game = COALESCE($3, selected_game), updated_at = now()
+        WHERE table_number = $4
+      `, [socket.sessionId, seatSide, game, tableNumber]);
     }
     await client.query("COMMIT");
+    socket.send(JSON.stringify({type: "table_joined", tableNumber, seatSide}));
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -347,7 +549,40 @@ function sendToSessions(sessionIds, payload) {
   }
 }
 
-async function createMatch(firstId, secondId, game = "checkers", preferredTable = null) {
+async function expireSearchRequests() {
+  const result = await pool.query(`
+    UPDATE club_players
+    SET looking_for_opponent = false,
+        looking_game = NULL,
+        looking_level = NULL,
+        looking_started_at = NULL
+    WHERE looking_for_opponent = true
+      AND looking_started_at IS NOT NULL
+      AND looking_started_at <= now() - interval '30 seconds'
+    RETURNING session_id
+  `);
+  if (result.rows.length) {
+    sendToSessions(result.rows.map(row => row.session_id), {
+      type: "notice",
+      message: "30 секунд истекли. Заявка на поиск соперника аннулирована."
+    });
+  }
+  return result.rowCount;
+}
+
+function scheduleSearchExpiration() {
+  const timer = setTimeout(async () => {
+    try {
+      const expired = await expireSearchRequests();
+      if (expired) await broadcastSnapshot();
+    } catch (error) {
+      console.error("Ошибка завершения поиска соперника:", error.message);
+    }
+  }, searchRequestTtlMs + 150);
+  timer.unref?.();
+}
+
+async function createMatch(firstId, secondId, game = "checkers", preferredTable = null, level = "B1") {
   const client = await pool.connect();
   let match;
   try {
@@ -359,9 +594,22 @@ async function createMatch(firstId, secondId, game = "checkers", preferredTable 
       FOR UPDATE
     `, [[firstId, secondId]]);
     if (players.rows.length !== 2) throw new Error("Один из игроков уже вышел из клуба.");
+    const capacityResult = await client.query(`
+      SELECT GREATEST(3, CEIL(COUNT(*)::numeric / 2)::integer) AS "tableCount"
+      FROM club_players
+      WHERE connected = true
+    `);
+    const tableCount = Number(capacityResult.rows[0]?.tableCount) || 3;
+    await client.query(`
+      INSERT INTO club_tables(table_number)
+      SELECT value FROM generate_series(1, $1) AS value
+      ON CONFLICT (table_number) DO NOTHING
+    `, [tableCount]);
     await client.query(`
       UPDATE club_tables
-      SET player_one = CASE WHEN player_one = ANY($1::text[]) THEN NULL ELSE player_one END,
+      SET player_one_seat = CASE WHEN player_one = ANY($1::text[]) THEN NULL ELSE player_one_seat END,
+          player_two_seat = CASE WHEN player_two = ANY($1::text[]) THEN NULL ELSE player_two_seat END,
+          player_one = CASE WHEN player_one = ANY($1::text[]) THEN NULL ELSE player_one END,
           player_two = CASE WHEN player_two = ANY($1::text[]) THEN NULL ELSE player_two END,
           updated_at = now()
       WHERE player_one = ANY($1::text[]) OR player_two = ANY($1::text[])
@@ -369,31 +617,40 @@ async function createMatch(firstId, secondId, game = "checkers", preferredTable 
     const tableResult = await client.query(`
       SELECT table_number
       FROM club_tables
-      WHERE table_number <= 3 AND player_one IS NULL AND player_two IS NULL
+      WHERE table_number <= $2 AND player_one IS NULL AND player_two IS NULL
       ORDER BY CASE WHEN table_number = $1 THEN 0 ELSE 1 END, table_number
       LIMIT 1
       FOR UPDATE
-    `, [Number(preferredTable) || 0]);
+    `, [Number(preferredTable) || 0, tableCount]);
     if (!tableResult.rows.length) throw new Error("Сейчас нет свободного стола.");
     const tableNumber = tableResult.rows[0].table_number;
     await client.query(`
       UPDATE club_tables
-      SET player_one = $1, player_two = $2, selected_game = $3, updated_at = now()
+      SET player_one = $1, player_two = $2,
+          player_one_seat = 'left', player_two_seat = 'right',
+          selected_game = $3, updated_at = now()
       WHERE table_number = $4
-    `, [firstId, secondId, safeText(game, 40) || "checkers", tableNumber]);
+    `, [firstId, secondId, safeGame(game), tableNumber]);
     await client.query(`
       UPDATE club_players
-      SET looking_for_opponent = false, looking_game = NULL
+      SET looking_for_opponent = false, looking_game = NULL, looking_level = NULL,
+          looking_started_at = NULL
       WHERE session_id = ANY($1::text[])
     `, [[firstId, secondId]]);
     const names = Object.fromEntries(players.rows.map(player => [player.session_id, player.nickname]));
+    const firstIsWhite = crypto.randomInt(0, 2) === 0;
     match = {
       type: "match_ready",
+      matchId: crypto.randomUUID(),
       tableNumber,
-      game: safeText(game, 40) || "checkers",
+      game: safeGame(game),
+      level: safeLevel(level),
+      seed: crypto.randomBytes(8).readBigUInt64BE().toString(),
+      coinResult: firstIsWhite ? "tails" : "heads",
+      starterId: crypto.randomInt(0, 2) === 0 ? firstId : secondId,
       players: [
-        {id: firstId, nickname: names[firstId]},
-        {id: secondId, nickname: names[secondId]}
+        {id: firstId, nickname: names[firstId], color: firstIsWhite ? "white" : "black"},
+        {id: secondId, nickname: names[secondId], color: firstIsWhite ? "black" : "white"}
       ]
     };
     await client.query("COMMIT");
@@ -412,7 +669,8 @@ async function invitePlayer(socket, data) {
   if (!socket.sessionId) return;
   const targetId = safeText(data.targetId, 80);
   if (!targetId || targetId === socket.sessionId) return;
-  const game = safeText(data.game, 40) || "checkers";
+  const game = safeGame(data.game);
+  const level = safeLevel(data.level);
   const target = await pool.query(
     "SELECT nickname FROM club_players WHERE session_id = $1 AND connected = true",
     [targetId]
@@ -428,9 +686,9 @@ async function invitePlayer(socket, data) {
   `, [socket.sessionId, targetId]);
   const invitationId = crypto.randomUUID();
   await pool.query(`
-    INSERT INTO club_invitations(id, from_session, to_session, game, table_number)
-    VALUES ($1, $2, $3, $4, $5)
-  `, [invitationId, socket.sessionId, targetId, game, Number(data.tableNumber) || null]);
+    INSERT INTO club_invitations(id, from_session, to_session, game, level, table_number)
+    VALUES ($1, $2, $3, $4, $5, $6)
+  `, [invitationId, socket.sessionId, targetId, game, level, Number(data.tableNumber) || null]);
   socket.send(JSON.stringify({
     type: "notice",
     message: `Приглашение отправлено игроку ${target.rows[0].nickname}.`
@@ -461,46 +719,90 @@ async function replyToInvitation(socket, data) {
     invitation.from_session,
     invitation.to_session,
     invitation.game,
-    invitation.table_number
+    invitation.table_number,
+    invitation.level
   );
 }
 
 async function setLookingForOpponent(socket, data) {
   if (!socket.sessionId) return;
   const active = data.active === true;
-  const game = safeText(data.game, 40) || "checkers";
+  const game = safeGame(data.game);
+  const level = safeLevel(data.level);
   await pool.query(`
     UPDATE club_players
-    SET looking_for_opponent = $2, looking_game = CASE WHEN $2 THEN $3 ELSE NULL END
+    SET looking_for_opponent = $2,
+        looking_game = CASE WHEN $2 THEN $3 ELSE NULL END,
+        looking_level = CASE WHEN $2 THEN $4 ELSE NULL END,
+        looking_started_at = CASE WHEN $2 THEN now() ELSE NULL END
     WHERE session_id = $1
-  `, [socket.sessionId, active, game]);
+  `, [socket.sessionId, active, game, level]);
   if (!active) {
     await broadcastSnapshot();
     return;
   }
-  const candidate = await pool.query(`
-    SELECT session_id, looking_game
+  socket.send(JSON.stringify({
+    type: "notice",
+    message: `Поиск соперника включён на 30 секунд: ${game}, уровень ${level}.`
+  }));
+  scheduleSearchExpiration();
+  await broadcastSnapshot();
+}
+
+async function acceptSearch(socket, data) {
+  if (!socket.sessionId) return;
+  const targetId = safeSessionId(data.targetId);
+  if (!targetId || targetId === socket.sessionId) return;
+  const target = await pool.query(`
+    SELECT looking_game, looking_level
     FROM club_players
-    WHERE connected = true AND looking_for_opponent = true AND session_id <> $1
-    ORDER BY CASE WHEN looking_game = $2 THEN 0 ELSE 1 END, last_seen
-    LIMIT 1
-  `, [socket.sessionId, game]);
-  if (candidate.rows.length) {
-    await createMatch(socket.sessionId, candidate.rows[0].session_id, game);
-  } else {
-    socket.send(JSON.stringify({
-      type: "notice",
-      message: "Поиск соперника включён. Приглашение увидят все активные игроки."
-    }));
-    await broadcastSnapshot();
+    WHERE session_id = $1
+      AND connected = true
+      AND looking_for_opponent = true
+      AND looking_started_at > now() - interval '30 seconds'
+  `, [targetId]);
+  if (!target.rows.length) {
+    socket.send(JSON.stringify({type: "error", message: "Этот игрок уже нашёл соперника."}));
+    return;
   }
+  await createMatch(
+    targetId,
+    socket.sessionId,
+    target.rows[0].looking_game,
+    Number(data.tableNumber) || null,
+    target.rows[0].looking_level
+  );
+}
+
+async function relayGameAction(socket, data) {
+  if (!socket.sessionId || !data.action || typeof data.action !== "object") return;
+  const tableNumber = Number(data.tableNumber);
+  const encodedAction = JSON.stringify(data.action);
+  if (!Number.isInteger(tableNumber) || tableNumber < 1 || tableNumber > 1000 || encodedAction.length > 50000) return;
+  const table = await pool.query(`
+    SELECT player_one, player_two, selected_game
+    FROM club_tables
+    WHERE table_number = $1 AND (player_one = $2 OR player_two = $2)
+  `, [tableNumber, socket.sessionId]);
+  if (!table.rows.length) return;
+  const row = table.rows[0];
+  const recipientId = row.player_one === socket.sessionId ? row.player_two : row.player_one;
+  if (!recipientId) return;
+  sendToSessions([recipientId], {
+    type: "game_action",
+    tableNumber,
+    game: row.selected_game,
+    action: data.action
+  });
 }
 
 async function leaveTables(sessionId) {
   if (!sessionId) return;
   await pool.query(`
     UPDATE club_tables
-    SET player_one = CASE WHEN player_one = $1 THEN NULL ELSE player_one END,
+    SET player_one_seat = CASE WHEN player_one = $1 THEN NULL ELSE player_one_seat END,
+        player_two_seat = CASE WHEN player_two = $1 THEN NULL ELSE player_two_seat END,
+        player_one = CASE WHEN player_one = $1 THEN NULL ELSE player_one END,
         player_two = CASE WHEN player_two = $1 THEN NULL ELSE player_two END,
         updated_at = now()
     WHERE player_one = $1 OR player_two = $1
@@ -546,6 +848,9 @@ function attachOnlineServer(server) {
         else if (data.type === "invite") await invitePlayer(socket, data);
         else if (data.type === "invite_reply") await replyToInvitation(socket, data);
         else if (data.type === "looking_for_opponent") await setLookingForOpponent(socket, data);
+        else if (data.type === "accept_search") await acceptSearch(socket, data);
+        else if (data.type === "game_action") await relayGameAction(socket, data);
+        else if (data.type === "room_presence") updateRoomPresence(socket, data);
         else if (data.type === "table_leave") {
           await leaveTables(socket.sessionId);
           await broadcastSnapshot();
@@ -566,9 +871,10 @@ function attachOnlineServer(server) {
       if (sameSessionIsOpen) return;
       try {
         await pool.query(
-          "UPDATE club_players SET connected = false, looking_for_opponent = false, looking_game = NULL, last_seen = now() WHERE session_id = $1",
+          "UPDATE club_players SET connected = false, looking_for_opponent = false, looking_game = NULL, looking_level = NULL, looking_started_at = NULL, guest_slot = NULL, last_seen = now() WHERE session_id = $1",
           [socket.sessionId]
         );
+        roomPresence.delete(socket.sessionId);
         await leaveTables(socket.sessionId);
         await broadcastSnapshot();
       } catch (error) {

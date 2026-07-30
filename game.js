@@ -55,6 +55,7 @@ if (!["#171514", "#4a2d22", "#783f2b", "#6f2535", "#c7ad83"].includes(profile.ha
 let profileCompleted = hadStoredProfile && localStorage.getItem("quietMoveWelcomed") === "1";
 let profileSaveQueue = Promise.resolve();
 let pos = { x: 94, y: 69 }, targetPos = null, arrivalCallback = null, nearTable = null, nearBulletin = false, soundOn = true, audioCtx;
+let roomWidthUnits = 100;
 let board = [], turn = "white", selected = null, chainPiece = null, seconds = 60, timerId, gameOver = false, moveHistory = [], activeOpeningName = null, announcedOpeningName = null, announcedEndgameClass = null;
 let checkersTimeline = [], checkersTimelineIndex = -1, checkersHistoryReview = false, checkersAnalysisMode = false, checkersResultRecorded = false, gameActionGeneration = 0;
 let playerPieceColor = "white", coinTossRun = 0, pendingCoinStart = null;
@@ -239,18 +240,20 @@ const clubCharacters = [];
 let activeOpponentId=null;
 function activeOpponent(){return clubCharacters.find(character=>character.id===activeOpponentId)||null}
 function opponentName(){
+  if(window.computerOpponentMode)return "Компьютер";
   if(window.onlineOpponentName)return window.onlineOpponentName;
   if(activeOpponent())return activeOpponent().name;
   return window.clubOnline?.isConnected()?"Ожидание соперника":"Компьютер";
 }
 function opponentLevelForMode(mode){
-  return activeOpponent()?.skills?.[mode]||profile.botLevel||"B1";
+  return onlineHumanMatch(mode)?.level||activeOpponent()?.skills?.[mode]||profile.botLevel||"B1";
 }
 function setActiveOpponent(characterId=null){
   activeOpponentId=clubCharacters.some(character=>character.id===characterId)?characterId:null;
   const opponent=activeOpponent();
   const onlineName=window.onlineOpponentName;
-  const waiting=window.clubOnline?.isConnected()&&!onlineName&&!opponent;
+  const computerMode=Boolean(window.computerOpponentMode);
+  const waiting=window.clubOnline?.isConnected()&&!onlineName&&!opponent&&!computerMode;
   const name=onlineName||opponent?.name||(waiting?"Ожидание соперника":"Компьютер");
   if($("#selectedOpponentLabel"))$("#selectedOpponentLabel").textContent=`Соперник: ${name}`;
   if($("#gameOpponentName"))$("#gameOpponentName").textContent=name;
@@ -263,6 +266,14 @@ window.setOnlineOpponent=name=>{
   window.onlineOpponentName=name||null;
   setActiveOpponent(activeOpponentId);
 };
+function onlineHumanMatch(mode=currentGameMode) {
+  const match=window.clubOnline?.currentMatch?.();
+  return match&&match.game===mode?match:null;
+}
+function sendOnlineGameAction(action) {
+  if(!onlineHumanMatch())return false;
+  return window.clubOnline?.sendGameAction?.(action)||false;
+}
 const matchGreetings={
   yulia:name=>`Приветствую, ${name}! Давайте начнём игру? Буду рада после партии обсудить самый интересный ход.`,
   sofia:name=>`Приветствую, ${name}. Начнём? Постарайтесь меня удивить — лёгкой партии не обещаю.`,
@@ -328,12 +339,12 @@ function announceTechnique(technique,actor="player",reason=""){
   appendCharacterMessage(box,opponent,text);
 }
 
-function runCoinToss(gameName, onResolved, purpose = "color") {
+function runCoinToss(gameName, onResolved, purpose = "color", forcedResult = null, forcedOutcome = null) {
   const dialog = $("#coinTossDialog"), coin = $("#coinTossCoin"), status = $("#coinTossStatus"), startButton = $("#coinTossStart");
   const run = ++coinTossRun;
-  const result = Math.random() < .5 ? "heads" : "tails";
-  const color = result === "heads" ? "black" : "white";
-  const starter = result === "heads" ? "player" : "bot";
+  const result = ["heads", "tails"].includes(forcedResult) ? forcedResult : Math.random() < .5 ? "heads" : "tails";
+  const color = forcedOutcome?.color || (result === "heads" ? "black" : "white");
+  const starter = forcedOutcome?.starter || (result === "heads" ? "player" : "bot");
   $("#coinTossTitle").textContent = purpose === "firstMove"
     ? `${gameName}: жеребьёвка первого хода`
     : `${gameName}: розыгрыш цвета`;
@@ -348,8 +359,8 @@ function runCoinToss(gameName, onResolved, purpose = "color") {
   setTimeout(() => {
     if (run !== coinTossRun) return;
     status.textContent = purpose === "firstMove"
-      ? result === "heads" ? "Орёл — первый ход ваш" : `Решка — первым ходит ${opponentName()}`
-      : result === "heads" ? "Орёл — вы играете чёрными" : "Решка — вы играете белыми";
+      ? `${result === "heads" ? "Орёл" : "Решка"} — ${starter === "player" ? "первый ход ваш" : `первым ходит ${opponentName()}`}`
+      : `${result === "heads" ? "Орёл" : "Решка"} — вы играете ${color === "black" ? "чёрными" : "белыми"}`;
     pendingCoinStart = () => {
       if (run !== coinTossRun) return;
       pendingCoinStart = null;
@@ -467,9 +478,82 @@ function syncProfileEditor() {
   $$(".interest-suggestions button").forEach(button=>button.classList.toggle("selected",profile.interests.includes(button.dataset.interest)));
   renderActivityPreview();
 }
+function persistProfileToServer() {
+  return fetch("/api/profile", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Session-Id": profileSessionId
+    },
+    credentials: "same-origin",
+    body: JSON.stringify({profile, completed: profileCompleted})
+  }).then(async response => {
+    if (!response.ok) throw new Error(`profile_save_${response.status}`);
+    const data = await response.json();
+    if (data.sessionId && data.sessionId !== profileSessionId) {
+      profileSessionId = data.sessionId;
+      localStorage.setItem(profileSessionStorageKey, profileSessionId);
+    }
+    return data;
+  });
+}
 function saveProfile() {
   localStorage.setItem("quietMoveProfile", JSON.stringify(profile));
   window.clubOnline?.refreshProfile();
+  const hydration = window.profileSessionReady || Promise.resolve();
+  profileSaveQueue = profileSaveQueue
+    .catch(() => {})
+    .then(() => hydration)
+    .then(persistProfileToServer)
+    .catch(error => {
+      console.warn("Не удалось сохранить анкету на сервере:", error.message);
+      return null;
+    });
+  return profileSaveQueue;
+}
+function mergeStoredProfile(savedProfile) {
+  if (!savedProfile || typeof savedProfile !== "object" || Array.isArray(savedProfile)) return;
+  Object.assign(profile, savedProfile);
+  profile.name = String(profile.name || "Гость").slice(0, 32);
+  profile.city = String(profile.city || "").slice(0, 80);
+  profile.birthDate = String(profile.birthDate || "").slice(0, 10);
+  profile.interests = Array.isArray(profile.interests) ? profile.interests.slice(0, 10) : [];
+  profile.games = Array.isArray(profile.games) ? profile.games : [];
+  profile.winStreak = Math.max(0, Number(profile.winStreak) || 0);
+  profile.bestWinStreak = Math.max(profile.winStreak, Number(profile.bestWinStreak) || 0);
+}
+async function hydrateProfileSession() {
+  try {
+    const response = await fetch("/api/profile", {
+      method: "GET",
+      headers: {"X-Session-Id": profileSessionId},
+      credentials: "same-origin",
+      cache: "no-store"
+    });
+    if (!response.ok) throw new Error(`profile_load_${response.status}`);
+    const data = await response.json();
+    if (data.sessionId) {
+      profileSessionId = data.sessionId;
+      localStorage.setItem(profileSessionStorageKey, profileSessionId);
+    }
+    if (data.completed) {
+      mergeStoredProfile(data.profile);
+      profileCompleted = true;
+      localStorage.setItem("quietMoveWelcomed", "1");
+      localStorage.setItem("quietMoveProfile", JSON.stringify(profile));
+    } else if (profileCompleted) {
+      await persistProfileToServer();
+    }
+  } catch (error) {
+    console.warn("Не удалось восстановить анкету с сервера:", error.message);
+  }
+  applyProfile();
+  if (!profileCompleted) {
+    window.setTimeout(() => {
+      if (!$("#customizer").open) $("#customizer").showModal();
+    }, 350);
+  }
+  return profile;
 }
 function victoryCountLabel(count) {
   const mod100=count%100,mod10=count%10;
@@ -643,9 +727,6 @@ function applyProfile() {
   $$("#clothesSwatches button").forEach(b => b.classList.toggle("selected", b.dataset.color === profile.clothes));
   $$("#hairSwatches button").forEach(b => b.classList.toggle("selected", b.dataset.color === profile.hair));
   $$("#skinSwatches button").forEach(b => b.classList.toggle("selected", b.dataset.color === profile.skin));
-  $$("#hairStyles button").forEach(b => b.classList.toggle("selected", b.dataset.style === profile.hairStyle));
-  $$("#faceStyles button").forEach(b => b.classList.toggle("selected", b.dataset.style === profile.faceStyle));
-  $$("#mustacheStyles button").forEach(b => b.classList.toggle("selected", b.dataset.style === profile.mustacheStyle));
   $("#profileName").textContent = profile.name;
   if($("#playerLabel"))$("#playerLabel").textContent = profile.name;
   $("#rating").textContent = profile.rating;
@@ -691,14 +772,59 @@ function toast(text) {
   $("#toast").textContent = text; $("#toast").classList.add("show");
   clearTimeout(toast.t); toast.t = setTimeout(() => $("#toast").classList.remove("show"), 2200);
 }
+window.toast=toast;
+
+function setRoomPlayerSprite(src) {
+  const player=$("#player"),sprite=$("#roomPlayerSprite");
+  if(sprite)sprite.src=src;
+  player?.style.setProperty("--guest-mask",`url("${src}")`);
+}
+
+function setRoomPlayerPresence(presence={}) {
+  const player=$("#player");
+  if(!player||activeSeat||seatingInProgress)return;
+  pos.x=Math.max(7,Math.min(roomWidthUnits-4,Number(presence.x)||94));
+  pos.y=69;
+  player.style.setProperty("--px",String(pos.x));
+  player.style.setProperty("--py",`${pos.y}%`);
+  player.classList.toggle("facing-right",presence.facing==="right");
+  player.classList.toggle("facing-left",presence.facing!=="right");
+  keepRoomPlayerInView();
+}
+window.setRoomPlayerPresence=setRoomPlayerPresence;
+
+function setRoomExtent(units=100){
+  roomWidthUnits=Math.max(100,Number(units)||100);
+  const club=$("#club"),player=$("#player");
+  club?.style.setProperty("--room-width-units",String(roomWidthUnits));
+  if(pos.x>roomWidthUnits-4){
+    pos.x=roomWidthUnits-4;
+    player?.style.setProperty("--px",String(pos.x));
+  }
+  if(targetPos)targetPos.x=Math.min(targetPos.x,roomWidthUnits-4);
+  keepRoomPlayerInView();
+}
+window.setRoomExtent=setRoomExtent;
+
+function keepRoomPlayerInView(){
+  const club=$("#club");
+  if(!club?.classList.contains("new-room")||club.scrollWidth<=club.clientWidth)return;
+  const playerPixels=pos.x*window.innerWidth/100;
+  const margin=Math.min(club.clientWidth*.24,260);
+  if(playerPixels>club.scrollLeft+club.clientWidth-margin){
+    club.scrollLeft=Math.min(club.scrollWidth-club.clientWidth,playerPixels-club.clientWidth+margin);
+  }else if(playerPixels<club.scrollLeft+margin){
+    club.scrollLeft=Math.max(0,playerPixels-margin);
+  }
+}
 
 function movePlayer(x, y) {
   const previousX=pos.x;
-  pos.x = Math.max(7, Math.min(96, x));
+  pos.x = Math.max(7, Math.min(roomWidthUnits-4, x));
   pos.y = $("#club")?.classList.contains("new-room") && !$("#player")?.classList.contains("sitting")
     ? 69
     : Math.max(43, Math.min(91, y));
-  const player = $("#player"); player.style.setProperty("--px", `${pos.x}%`); player.style.setProperty("--py", `${pos.y}%`);
+  const player = $("#player"); player.style.setProperty("--px", String(pos.x)); player.style.setProperty("--py", `${pos.y}%`);
   if(Math.abs(pos.x-previousX)>.01){
     player.classList.toggle("facing-right",pos.x>previousX);
     player.classList.toggle("facing-left",pos.x<previousX);
@@ -706,14 +832,20 @@ function movePlayer(x, y) {
   const sprite=$("#roomPlayerSprite");
   if(sprite&&!player.classList.contains("sitting")){
     const frame=Math.floor(Date.now()/180)%2?"b":"a";
-    sprite.src=`assets/new-room/sprites/walk-right-${frame}.png`;
+    setRoomPlayerSprite(`assets/new-room/sprites/walk-right-${frame}.png`);
   }
+  window.clubOnline?.updateRoomPresence?.({
+    x:pos.x,
+    y:pos.y,
+    facing:player.classList.contains("facing-right")?"right":"left"
+  });
   player.classList.add("walking"); clearTimeout(movePlayer.t); movePlayer.t = setTimeout(() => player.classList.remove("walking"), 180);
+  keepRoomPlayerInView();
   detectTable();
 }
 function walkTo(x, y, callback = null) {
   targetPos = {
-    x: Math.max(7, Math.min(96, x)),
+    x: Math.max(7, Math.min(roomWidthUnits-4, x)),
     y: $("#club")?.classList.contains("new-room") ? 69 : Math.max(43, Math.min(91, y))
   };
   arrivalCallback = callback;
@@ -761,18 +893,33 @@ setInterval(() => {
   }
 }, 30);
 $("#club").addEventListener("click", e => {
-  if (seatingInProgress || e.target.closest("button,aside,.chat-panel")) return;
-  const r = $("#club").getBoundingClientRect(); walkTo((e.clientX - r.left) / r.width * 100, (e.clientY - r.top) / r.height * 100);
+  if(seatingInProgress)return;
+  const seat=e.target.closest("[data-seat-table][data-seat-side]");
+  if(seat){
+    e.stopPropagation();
+    if(activeSeat)return;
+    const table=$(`.table[data-table="${seat.dataset.seatTable}"]`);
+    if(!table||table.classList.contains("busy"))return;
+    sitAtTable(table,seat.dataset.seatSide);
+    return;
+  }
+  const table=e.target.closest(".table[data-table]");
+  if(table){
+    if(!e.target.closest(".npc[data-character-id]"))interact(table);
+    return;
+  }
+  if(e.target.closest("button,aside,.chat-panel"))return;
+  const club=$("#club"),r=club.getBoundingClientRect();
+  const x=(e.clientX-r.left+club.scrollLeft)/window.innerWidth*100;
+  walkTo(x,(e.clientY-r.top)/r.height*100);
 });
-$$(".table").forEach(table => table.addEventListener("click", event => {
-  if(event.target.closest(".npc[data-character-id]"))return;
-  interact(table);
-}));
-$$("[data-focus]").forEach(row => row.addEventListener("click", () => {
+$("#roomsPanel").addEventListener("click", event => {
+  const row=event.target.closest("[data-focus]");
+  if(!row)return;
   if (seatingInProgress) return;
   const t = $(`.table[data-table="${row.dataset.focus}"]`), x = parseFloat(t.style.getPropertyValue("--x")), y = parseFloat(t.style.getPropertyValue("--y"));
   walkTo(x, y + 9, () => interact(t));
-}));
+});
 $("#wallBulletin")?.addEventListener("click", () => {
   if (seatingInProgress) return;
   walkTo(10.5, 43, openBulletin);
@@ -787,13 +934,33 @@ function interact(table) {
   }
   sitAtTable(table);
 }
-function sitAtTable(table,seatSide="left") {
+function availableRoomSeat(table, preferredSide = null) {
+  const seat = side => $(`[data-seat-table="${table.dataset.table}"][data-seat-side="${side}"]`);
+  if (preferredSide) {
+    const preferred = seat(preferredSide);
+    return preferred && !preferred.classList.contains("occupied-other") ? preferredSide : null;
+  }
+  if (!seat("left")?.classList.contains("occupied-other")) return "left";
+  if (!seat("right")?.classList.contains("occupied-other")) return "right";
+  return null;
+}
+function sitAtTable(table,seatSide=null) {
   if (seatingInProgress || activeSeat) return;
+  const newRoom=$("#club")?.classList.contains("new-room");
+  if(newRoom){
+    seatSide=availableRoomSeat(table,seatSide);
+    if(!seatSide){
+      toast("Этот стул уже занят другой гостьей");
+      return;
+    }
+    window.clubOnline?.joinTable(table.dataset.table,null,seatSide);
+  }else{
+    seatSide ||= "left";
+  }
   setActiveOpponent(table.dataset.table==="5"?"master":null);
   seatingInProgress = true;
   const x = parseFloat(table.style.getPropertyValue("--x"));
   const y = parseFloat(table.style.getPropertyValue("--y"));
-  const newRoom=$("#club")?.classList.contains("new-room");
   const seatX=x+(seatSide==="right"?7.3:-7.3);
   $("#interaction").textContent = "Подходим к стулу…";
   walkTo(seatX, newRoom?69:y+8, () => {
@@ -805,7 +972,7 @@ function sitAtTable(table,seatSide="left") {
     chair?.classList.add("pulled");
     $("#player").classList.toggle("facing-right",seatSide==="left");
     $("#player").classList.toggle("facing-left",seatSide==="right");
-    if($("#roomPlayerSprite"))$("#roomPlayerSprite").src="assets/new-room/sprites/pull-chair.png";
+    setRoomPlayerSprite("assets/new-room/sprites/pull-chair.png");
     $("#interaction").textContent = "Отодвигаем стул…";
     beep(145,.08);
     setTimeout(() => {
@@ -813,31 +980,31 @@ function sitAtTable(table,seatSide="left") {
       movePlayer(seatX, newRoom?82.8:y+3.5);
       $("#player").classList.toggle("seat-right",seatSide==="right");
       $("#player").classList.toggle("seat-left",seatSide==="left");
-      if($("#roomPlayerSprite"))$("#roomPlayerSprite").src="assets/new-room/sprites/sit-side-left-pose.png";
+      setRoomPlayerSprite("assets/new-room/sprites/sit-side-left-pose.png");
       const overlay=$("#seatFrontOverlay");
-      if(overlay)overlay.className=`seat-front-overlay table-${table.dataset.table}-front visible`;
+      if(overlay){
+        const visualTable=(Number(table.dataset.table)-1)%3+1;
+        overlay.className=`seat-front-overlay table-${visualTable}-front visible`;
+      }
       $("#interaction").textContent = "Вы садитесь за стол";
       setTimeout(() => {
         seatingInProgress = false;
-        openTableGameMenu(table.dataset.table);
+        if(window.clubOnline?.isConnected()){
+          window.clubOnline.openSearch?.(table.dataset.table);
+          $("#interaction").textContent="Выберите игру для заявки. Ожидание продлится 30 секунд.";
+        }else{
+          toast("Нет соединения с клубом. Используйте кнопку «Игра против компьютера».");
+        }
       }, 650);
     }, 420);
   });
 }
-$$(("[data-seat-table]")).forEach(seat=>seat.addEventListener("click",event=>{
-  event.stopPropagation();
-  if(seatingInProgress||activeSeat)return;
-  const table=$(`.table[data-table="${seat.dataset.seatTable}"]`);
-  if(!table||table.classList.contains("busy"))return;
-  window.clubOnline?.joinTable(table.dataset.table);
-  sitAtTable(table,seat.dataset.seatSide);
-}));
 function leaveSeat() {
   if (!activeSeat) return;
   const { table, chair } = activeSeat;
   $("#player").classList.remove("sitting");
   $("#player").classList.remove("seat-left","seat-right");
-  if($("#roomPlayerSprite"))$("#roomPlayerSprite").src="assets/new-room/sprites/walk-right-a.png";
+  setRoomPlayerSprite("assets/new-room/sprites/walk-right-a.png");
   const overlay=$("#seatFrontOverlay");
   if(overlay)overlay.className="seat-front-overlay";
   movePlayer(pos.x, $("#club")?.classList.contains("new-room")?69:pos.y+5);
@@ -848,6 +1015,18 @@ function leaveSeat() {
     detectTable();
   }, 320);
 }
+function cancelRoomSeatAttempt(){
+  targetPos=null;
+  arrivalCallback=null;
+  seatingInProgress=false;
+  if(activeSeat)leaveSeat();
+  const player=$("#player");
+  player.classList.remove("sitting","seat-left","seat-right");
+  setRoomPlayerSprite("assets/new-room/sprites/walk-right-a.png");
+  $("#seatFrontOverlay")?.setAttribute("class","seat-front-overlay");
+  detectTable();
+}
+window.cancelRoomSeatAttempt=cancelRoomSeatAttempt;
 
 const clubSidebar=$("#clubSidebar"),sidebarCollapse=$("#sidebarCollapse");
 function setSidebarCollapsed(collapsed,persist=true){
@@ -860,6 +1039,17 @@ function setSidebarCollapsed(collapsed,persist=true){
 }
 setSidebarCollapsed(localStorage.getItem("quietMoveSidebarCollapsed")==="1",false);
 sidebarCollapse.addEventListener("click",()=>setSidebarCollapsed(!clubSidebar.classList.contains("collapsed")));
+const clubChatPanel=$("#clubChatPanel"),chatCollapse=$("#chatCollapse");
+function setChatCollapsed(collapsed,persist=true){
+  clubChatPanel.classList.toggle("collapsed",collapsed);
+  chatCollapse.setAttribute("aria-expanded",String(!collapsed));
+  chatCollapse.setAttribute("aria-label",collapsed?"Развернуть чат":"Свернуть чат");
+  chatCollapse.title=collapsed?"Развернуть чат":"Свернуть чат";
+  chatCollapse.querySelector("span").textContent=collapsed?"+":"−";
+  if(persist)localStorage.setItem("yourTurnChatCollapsed",collapsed?"1":"0");
+}
+setChatCollapsed(localStorage.getItem("yourTurnChatCollapsed")==="1",false);
+chatCollapse.addEventListener("click",()=>setChatCollapsed(!clubChatPanel.classList.contains("collapsed")));
 $$(".sidebar-tabs button[data-panel]").forEach(b => b.addEventListener("click", () => {
   $$(".sidebar-tabs button[data-panel]").forEach(x => x.classList.toggle("active", x === b));
   const panels={rooms:"#roomsPanel",history:"#historyPanel",characters:"#charactersPanel",playerProfile:"#playerProfilePanel"};
@@ -868,16 +1058,6 @@ $$(".sidebar-tabs button[data-panel]").forEach(b => b.addEventListener("click", 
 }));
 $("#customizeButton").addEventListener("click", () => $("#customizer").showModal());
 $("#editPlayerProfile").addEventListener("click", () => $("#customizer").showModal());
-function setupChoices(id, prefix) {
-  $$(`#${id} button`).forEach(btn => btn.addEventListener("click", () => {
-    $$(`#${id} button`).forEach(x => x.classList.toggle("selected", x === btn));
-    $$("#character, #avatarPreview").forEach(el => {
-      [...el.classList].filter(c => c.startsWith(prefix)).forEach(c => el.classList.remove(c));
-      el.classList.add(btn.dataset.style);
-    });
-  }));
-}
-setupChoices("hairStyles", "hair-"); setupChoices("faceStyles", "face-"); setupChoices("mustacheStyles", "mustache-");
 function resizeProfilePhoto(file,maxSize=512) {
   return new Promise((resolve,reject)=>{
     if(!file.type.startsWith("image/")){reject(new Error("Выберите изображение"));return}
@@ -925,7 +1105,7 @@ $$(".interest-suggestions button").forEach(button=>button.addEventListener("clic
 $("#activityFromInput").addEventListener("input",renderActivityPreview);
 $("#activityToInput").addEventListener("input",renderActivityPreview);
 $("#customizer").addEventListener("close", () => applyProfile());
-$("#saveAvatar").addEventListener("click", e => {
+$("#saveAvatar").addEventListener("click", async e => {
   e.preventDefault();
   profile.name = $("#nameInput").value.trim() || "Гость";
   profile.city = $("#cityInput").value.trim();
@@ -934,10 +1114,10 @@ $("#saveAvatar").addEventListener("click", e => {
   profile.activityFrom = $("#activityFromInput").value || "18:00";
   profile.activityTo = $("#activityToInput").value || "23:00";
   profile.interests = [...new Set($("#interestsInput").value.split(",").map(item=>item.trim()).filter(Boolean))].slice(0,10);
-  profile.hairStyle = $("#hairStyles .selected").dataset.style;
-  profile.faceStyle = $("#faceStyles .selected").dataset.style;
-  profile.mustacheStyle = $("#mustacheStyles .selected").dataset.style;
-  saveProfile(); applyProfile(); $("#customizer").close(); toast(`Анкета ${profile.name} сохранена`);
+  profileCompleted = true;
+  localStorage.setItem("quietMoveWelcomed", "1");
+  await saveProfile();
+  applyProfile(); $("#customizer").close(); toast(`Анкета ${profile.name} сохранена`);
 });
 
 function appendCharacterMessage(box, character, text) {
@@ -1129,8 +1309,9 @@ function postChat(form, input, box, isGameChat=false) {
 function escapeHtml(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
 postChat($("#chatForm"), $("#chatInput"), $("#messages"));
 postChat($("#gameChatForm"), $("#gameChatInput"), $("#gameMessages"),true);
-$$(".chat-tabs button").forEach(b => b.addEventListener("click", () => {
-  $$(".chat-tabs button").forEach(x => x.classList.toggle("active", x === b));
+$$(".chat-tabs button[data-chat]").forEach(b => b.addEventListener("click", () => {
+  $$(".chat-tabs button[data-chat]").forEach(x => x.classList.toggle("active", x === b));
+  if(clubChatPanel.classList.contains("collapsed"))setChatCollapsed(false);
   toast(b.dataset.chat === "global" ? "Общий чат клуба" : "Чат текущего стола");
 }));
 
@@ -1636,7 +1817,7 @@ function resumeCheckersFromLatest() {
   updateCheckersHistoryControls();
   startCheckersClock();
   scheduleGameAction(checkEnd, 120);
-  if(turn==="black")scheduleGameAction(botMove, 420);
+  if(turn==="black"&&!onlineHumanMatch())scheduleGameAction(botMove, 420);
 }
 function stepCheckersHistory(direction) {
   const next = checkersTimelineIndex + direction;
@@ -1679,10 +1860,13 @@ function recordMove(m,color,continuation,promoted) {
   }
   renderMoveHistory();
 }
-function performMove(m) {
+function performMove(m, source="local") {
   const animation = snapshotMove(m);
   const continuation = Boolean(chainPiece);
   const p=board[m.from[0]][m.from[1]]; board[m.from[0]][m.from[1]]=null;board[m.to[0]][m.to[1]]=p;
+  if(source==="local"&&p.color==="white"&&onlineHumanMatch()){
+    sendOnlineGameAction({kind:"checkers_move",move:{from:[...m.from],to:[...m.to],capture:m.capture?[...m.capture]:null}});
+  }
   const wasKing = p.king;
   if(m.capture){board[m.capture[0]][m.capture[1]]=null;beep(170,.11)} else beep(260,.07);
   if((p.color==="white"&&m.to[0]===0)||(p.color==="black"&&m.to[0]===7))p.king=true;
@@ -1698,11 +1882,11 @@ function performMove(m) {
   if(m.capture&&capturesFrom(m.to[0],m.to[1]).length){
     chainPiece=m.to;selected=m.to;renderBoard();playMoveAnimation(animation,m.to);
     $("#gameTip").textContent=p.color==="white"?"Продолжите взятие этой же шашкой.":`${opponentName()} продолжает взятие…`;
-    if(p.color==="black")scheduleGameAction(botMove,420);
+    if(p.color==="black"&&!onlineHumanMatch())scheduleGameAction(botMove,420);
     return
   }
   chainPiece=null;selected=null;turn=p.color==="white"?"black":"white";resetTimer();renderBoard();playMoveAnimation(animation,m.to);updateTurn();pushCheckersPosition();
-  scheduleGameAction(checkEnd,150);if(turn==="black"&&!gameOver)scheduleGameAction(botMove,550);
+  scheduleGameAction(checkEnd,150);if(turn==="black"&&!gameOver&&!onlineHumanMatch())scheduleGameAction(botMove,550);
 }
 function simulateMove(state,m) {
   const next=state.map(row=>row.map(piece=>piece?{...piece}:null));
@@ -1712,6 +1896,34 @@ function simulateMove(state,m) {
   if((piece.color==="white"&&m.to[0]===0)||(piece.color==="black"&&m.to[0]===7))piece.king=true;
   return next;
 }
+const pendingCheckersOnlineActions=[];
+function rotateCheckersCell(cell){return cell?[7-cell[0],7-cell[1]]:null}
+function applyOnlineCheckersAction(action){
+  if(!action||action.kind!=="checkers_move"||!onlineHumanMatch())return;
+  if(gameOver){
+    pendingCheckersOnlineActions.push(action);
+    return;
+  }
+  const transformed={
+    from:rotateCheckersCell(action.move?.from),
+    to:rotateCheckersCell(action.move?.to),
+    capture:rotateCheckersCell(action.move?.capture)
+  };
+  const legal=allMoves("black").filter(move=>!chainPiece||move.from.join()===chainPiece.join());
+  const move=legal.find(candidate=>
+    sameCell(candidate.from,transformed.from)&&
+    sameCell(candidate.to,transformed.to)&&
+    ((!candidate.capture&&!transformed.capture)||(candidate.capture&&transformed.capture&&sameCell(candidate.capture,transformed.capture)))
+  );
+  if(move)performMove(move,"remote");
+}
+function flushPendingCheckersOnlineActions(){
+  while(!gameOver&&pendingCheckersOnlineActions.length)applyOnlineCheckersAction(pendingCheckersOnlineActions.shift());
+}
+window.receiveOnlineGameAction=(game,action)=>{
+  if(["checkers","giveaway"].includes(game))applyOnlineCheckersAction(action);
+  else window.receiveOnlineArcadeAction?.(game,action);
+};
 function sameCell(a,b) {
   return Boolean(a&&b&&a[0]===b[0]&&a[1]===b[1]);
 }
@@ -2325,6 +2537,9 @@ function openCheckersAnalysis(){
 }
 function startGame(tableNo,mode="checkers"){
   currentTableNo=String(tableNo);currentGameMode=mode;hideResultOverlay();closeWinStreakPopup();cancelLossRescue();setActiveOpponent(activeOpponentId);updateDifficultyUI();cancelCoinToss();
+  const onlineMatch=onlineHumanMatch(mode);
+  if(!onlineMatch)window.clubOnline?.cancelSearch();
+  pendingCheckersOnlineActions.length=0;
   cancelScheduledGameActions();clearCheckersTimeline();
   checkersResultRecorded=false;checkersAnalysisMode=false;
   resetYuliaConversation("game");
@@ -2351,13 +2566,16 @@ function startGame(tableNo,mode="checkers"){
     );
     resetCheckersTimeline();
     startCheckersClock();
-    if(turn==="black")scheduleGameAction(botMove,520);
-  });
+    flushPendingCheckersOnlineActions();
+    if(turn==="black"&&!onlineMatch)scheduleGameAction(botMove,520);
+  },"color",onlineMatch?onlineMatch.coinResult:null,onlineMatch?{color:onlineMatch.me.color}:null);
 }
 function exitGameToClub(){
   clearInterval(timerId);cancelScheduledGameActions();clearCheckersTimeline();hideResultOverlay();closeWinStreakPopup();cancelLossRescue();cancelCoinToss();$(".game-shell").classList.remove("game-pending-toss");
   if($("#gameDialog").open)$("#gameDialog").close();
   window.clubOnline?.leaveTable();
+  window.computerOpponentMode=false;
+  setActiveOpponent(null);
   leaveSeat();toast("Вы вернулись в клуб");
 }
 $("#leaveGame").addEventListener("click",exitGameToClub);
@@ -2370,6 +2588,4 @@ $("#soundButton").addEventListener("click",()=>{soundOn=!soundOn;$("#soundButton
 
 applyProfile(); detectTable();
 window.setInterval(renderPlayerProfile,60000);
-if (!localStorage.getItem("quietMoveWelcomed")) {
-  localStorage.setItem("quietMoveWelcomed","1"); setTimeout(()=>$("#customizer").showModal(),350);
-}
+window.profileSessionReady = hydrateProfileSession();

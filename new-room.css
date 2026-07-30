@@ -1,18 +1,22 @@
 .club.new-room {
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   background: #eadbc8;
   perspective: none;
   isolation: isolate;
+  scrollbar-color: #9b7448 #eadbc8;
+  scrollbar-width: thin;
 }
 
 .new-room-backdrop,
 .new-room-foreground,
 .seat-front-overlay {
   position: absolute;
-  inset: 0;
-  background-position: center;
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
+  inset: 0 auto 0 0;
+  width: calc(var(--room-width-units) * 1vw);
+  background-position: left center;
+  background-size: 100vw 100%;
+  background-repeat: repeat-x;
   pointer-events: none;
 }
 
@@ -28,13 +32,15 @@
 
 .new-room-boards {
   position: absolute;
-  inset: 0;
+  inset: 0 auto 0 0;
+  width: calc(var(--room-width-units) * 1vw);
   z-index: 14;
   pointer-events: none;
 }
 
 .new-room-board {
   position: absolute;
+  left: calc(var(--board-x) * 1vw);
   width: clamp(78px, 10.4vw, 154px);
   height: auto;
   filter: drop-shadow(0 5px 5px rgb(62 42 22 / 18%));
@@ -43,28 +49,31 @@
 }
 
 .new-room-board-left {
-  left: 20.1%;
   top: 62.9%;
   --board-rotate: -1.6deg;
 }
 
 .new-room-board-center {
-  left: 50.2%;
   top: 63%;
   --board-rotate: .4deg;
 }
 
 .new-room-board-right {
-  left: 80.2%;
   top: 62.9%;
   --board-rotate: 1.4deg;
+}
+
+.new-room-board.dynamic-room-board {
+  top: 63%;
+  --board-rotate: .4deg;
 }
 
 .new-room .room-streak-quick {
   z-index: 20;
 }
 
-.topbar-rules-button {
+.topbar-rules-button,
+.topbar-computer-button {
   padding: .48rem .72rem;
   border: 1px solid rgb(215 173 98 / 32%);
   border-radius: .55rem;
@@ -73,7 +82,73 @@
   cursor: pointer;
 }
 
+.topbar-computer-button {
+  border-color: rgb(230 196 123 / 48%);
+  color: #3a2415;
+  background: linear-gradient(180deg, #efd89f, #c89b51);
+  box-shadow: 0 4px 12px rgb(21 10 4 / 28%);
+  font-weight: 800;
+}
+
+.topbar-computer-button:hover,
+.topbar-computer-button:focus-visible {
+  filter: brightness(1.08);
+}
+
+/* Dark oak navigation and chat surfaces */
+.topbar {
+  background:
+    linear-gradient(180deg, rgb(67 43 28 / 98%), rgb(39 24 15 / 97%)),
+    repeating-linear-gradient(8deg, transparent 0 7px, rgb(255 255 255 / 3%) 8px 9px);
+  border-bottom-color: rgb(216 173 98 / 26%);
+  box-shadow: 0 8px 28px rgb(20 10 5 / 38%);
+}
+
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border: 2px solid #c89550;
+  border-radius: 5px;
+  background:
+    conic-gradient(#e0bc7d 25%, #4a2b1a 0 50%, #e0bc7d 0 75%, #4a2b1a 0)
+    0 0 / 14px 14px;
+  box-shadow: 0 3px 8px rgb(16 7 3 / 55%), inset 0 0 0 1px rgb(255 240 200 / 20%);
+}
+
+.brand strong {
+  color: #f2dfbd;
+}
+
+.brand small {
+  color: #c8aa7c;
+}
+
+.sidebar,
+.chat-panel,
+.game-chat,
+.arcade-chat {
+  background:
+    linear-gradient(145deg, rgb(55 34 21 / 97%), rgb(31 18 11 / 98%)),
+    repeating-linear-gradient(8deg, transparent 0 8px, rgb(255 255 255 / 2%) 9px 10px);
+  border-color: rgb(216 173 98 / 20%);
+  box-shadow: 0 20px 60px rgb(18 8 3 / 55%);
+}
+
+.sidebar-tabs,
+.chat-tabs,
+.game-chat h3,
+.arcade-chat h3 {
+  border-color: rgb(216 173 98 / 16%);
+}
+
+.topbar-rules-button,
+.avatar-button {
+  background: rgb(20 10 5 / 25%);
+}
+
 .new-room .new-room-table {
+  left: calc(var(--x) * 1vw);
   top: 69%;
   z-index: 16;
   width: 19%;
@@ -119,6 +194,7 @@
 
 .seat-hotspot {
   position: absolute;
+  left: calc(var(--seat-x) * 1vw);
   z-index: 18;
   top: 69%;
   width: 10%;
@@ -139,14 +215,24 @@
   box-shadow: 0 0 0 .42rem rgb(105 164 179 / 10%);
 }
 
-.seat-1-left { left: 13%; }
-.seat-1-right { left: 28%; }
-.seat-2-left { left: 43%; }
-.seat-2-right { left: 58%; }
-.seat-3-left { left: 73%; }
-.seat-3-right { left: 87%; }
+.seat-hotspot.occupied {
+  border-color: rgb(101 71 43 / 28%);
+  background: rgb(83 54 31 / 9%);
+}
+
+.seat-hotspot.occupied-other {
+  cursor: not-allowed;
+}
+
+.seat-hotspot.occupied-other:hover,
+.seat-hotspot.occupied-other:focus-visible {
+  border-color: rgb(126 76 53 / 42%);
+  background: rgb(120 62 45 / 12%);
+  box-shadow: 0 0 0 .42rem rgb(120 62 45 / 7%);
+}
 
 .club.new-room #player {
+  left: calc(var(--px) * 1vw);
   z-index: 10;
   width: clamp(92px, 11.5vw, 176px);
   height: clamp(155px, 21vw, 320px);
@@ -167,7 +253,32 @@
   user-select: none;
 }
 
+.club.new-room #player .player-dress-tint {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--guest-dress);
+  opacity: .74;
+  mix-blend-mode: color;
+  pointer-events: none;
+  -webkit-mask-image: var(--guest-mask);
+  mask-image: var(--guest-mask);
+  -webkit-mask-position: center bottom;
+  mask-position: center bottom;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  clip-path: polygon(19% 21%, 82% 21%, 92% 79%, 8% 79%);
+}
+
 .club.new-room #player.facing-right img {
+  transform: scaleX(-1);
+}
+
+.club.new-room #player.facing-right .player-dress-tint {
   transform: scaleX(-1);
 }
 
@@ -194,7 +305,12 @@
   transform: translate(-44%, -82%);
 }
 
+.club.new-room #player.sitting .player-dress-tint {
+  clip-path: polygon(16% 20%, 88% 20%, 93% 82%, 4% 82%);
+}
+
 .room-player-name {
+  z-index: 2;
   position: absolute;
   left: 50%;
   top: -2px;
@@ -210,6 +326,92 @@
 
 .club.new-room #player.sitting .room-player-name {
   display: none;
+}
+
+.room-online-guests {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--room-width-units) * 1vw);
+  z-index: 9;
+  pointer-events: none;
+}
+
+.room-guest {
+  position: absolute;
+  left: calc(var(--px) * 1vw);
+  top: var(--py);
+  width: clamp(92px, 11.5vw, 176px);
+  height: clamp(155px, 21vw, 320px);
+  z-index: 9;
+  transform: translate(-50%, -100%);
+  transform-origin: 50% 100%;
+  transition: left .24s linear, top .24s linear;
+}
+
+.room-guest > img,
+.room-guest .guest-dress-tint {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.room-guest > img {
+  filter: drop-shadow(0 8px 5px rgb(44 43 34 / 22%));
+  user-select: none;
+}
+
+.room-guest .guest-dress-tint {
+  background: var(--guest-dress);
+  opacity: .74;
+  mix-blend-mode: color;
+  -webkit-mask-image: var(--guest-mask);
+  mask-image: var(--guest-mask);
+  -webkit-mask-position: center bottom;
+  mask-position: center bottom;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  clip-path: polygon(19% 21%, 82% 21%, 92% 79%, 8% 79%);
+}
+
+.room-guest.facing-right > img,
+.room-guest.facing-right .guest-dress-tint {
+  transform: scaleX(-1);
+}
+
+.room-guest.walking {
+  animation: newRoomGuestWalk .36s ease-in-out infinite alternate;
+}
+
+.room-guest.sitting {
+  top: 82.8%;
+  z-index: 13;
+  width: clamp(92px, 9.4vw, 142px);
+  height: clamp(148px, 17.6vw, 264px);
+  transform: translate(-50%, -82%);
+}
+
+.room-guest.sitting.seat-left {
+  transform: translate(-56%, -82%);
+}
+
+.room-guest.sitting.seat-right {
+  transform: translate(-44%, -82%);
+}
+
+.room-guest.sitting .guest-dress-tint {
+  clip-path: polygon(16% 20%, 88% 20%, 93% 82%, 4% 82%);
+}
+
+.room-guest .room-player-name {
+  top: 1px;
+  color: #fff7e9;
+  background: rgb(78 48 29 / 90%);
+  box-shadow: 0 3px 10px rgb(44 24 13 / 28%);
 }
 
 .seat-front-overlay {
@@ -234,6 +436,7 @@
 }
 
 .new-room .interaction {
+  position: fixed;
   z-index: 22;
   bottom: 4.7rem;
   color: #3d5146;
@@ -244,6 +447,7 @@
 }
 
 .new-room .controls-hint {
+  position: fixed;
   z-index: 22;
   bottom: 2.2rem;
   color: #5d6c63;
@@ -261,6 +465,10 @@
   to { transform: scaleX(-1) translateY(-3px); }
 }
 
+@keyframes newRoomGuestWalk {
+  to { margin-top: -3px; }
+}
+
 @media (max-width: 850px) {
   .new-room-backdrop,
   .new-room-foreground,
@@ -272,4 +480,57 @@
   .new-room .room-streak-quick {
     display: none;
   }
+
+  .topbar {
+    gap: 10px;
+  }
+
+  .topbar .online {
+    display: none;
+  }
+
+  .topbar-computer-button {
+    margin-left: auto;
+    font-size: 11px;
+  }
+}
+
+/* Collapsible club chat */
+.chat-panel {
+  transition: height .22s ease, box-shadow .22s ease;
+}
+
+.chat-tabs {
+  min-height: 42px;
+  align-items: stretch;
+}
+
+.chat-tabs .chat-collapse {
+  position: relative;
+  flex: 0 0 34px;
+  width: 34px;
+  padding: 0;
+  border-left: 1px solid rgb(216 173 98 / 16%);
+  color: #d7ad62;
+}
+
+.chat-tabs .chat-collapse span {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  margin: auto;
+  place-items: center;
+  border: 1px solid rgb(216 173 98 / 28%);
+  border-radius: 6px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.chat-panel.collapsed {
+  height: 42px;
+  box-shadow: 0 10px 28px rgb(18 8 3 / 38%);
+}
+
+.chat-panel.collapsed > :not(.chat-tabs) {
+  display: none;
 }
