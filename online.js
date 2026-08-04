@@ -307,14 +307,32 @@
     table.style.setProperty("--y", "65%");
     table.setAttribute("aria-label", `Стол ${number}, свободен`);
 
+    const sprite = document.createElement("img");
+    sprite.className = "room-table-sprite";
+    sprite.src = "assets/new-room/table-sprite-v2.png";
+    sprite.alt = "";
+    sprite.setAttribute("aria-hidden", "true");
     const label = document.createElement("span");
     label.className = "table-number";
     label.textContent = number.padStart(2, "0");
     const status = document.createElement("span");
     status.className = "table-status";
     status.textContent = "Свободен";
-    table.append(label, status);
+    table.append(sprite, label, status);
     return table;
+  }
+
+  function createRoomChairVisual(tableNumber, side) {
+    const tablePosition = roomTableX(tableNumber);
+    const chair = document.createElement("img");
+    chair.className = `room-chair-visual dynamic-room-chair chair-${tableNumber}-${side}`;
+    chair.dataset.chairTable = String(tableNumber);
+    chair.dataset.chairSide = side;
+    chair.style.setProperty("--chair-x", String(tablePosition + (side === "right" ? 8 : -7)));
+    chair.src = "assets/new-room/chair-sprite-v2.png";
+    chair.alt = "";
+    chair.setAttribute("aria-hidden", "true");
+    return chair;
   }
 
   function createRoomSeat(tableNumber, side) {
@@ -357,18 +375,19 @@
   function ensureRoomFurniture(tables, requestedWidth) {
     const club = document.querySelector("#club");
     const boards = document.querySelector(".new-room-boards");
+    const chairLayer = document.querySelector("#roomFurnitureBack");
     const guests = document.querySelector("#roomOnlineGuests");
     const roomsPanel = document.querySelector("#roomsPanel");
-    if (!club || !boards || !guests || !roomsPanel) return;
+    if (!club || !boards || !chairLayer || !guests || !roomsPanel) return;
 
     const tableNumbers = tables
       .map(table => Number(table.tableNumber))
       .filter(number => Number.isFinite(number) && number > 0);
     const valid = new Set(tableNumbers.map(String));
     const width = Math.max(
-      100,
+      200,
       Number(requestedWidth) || 0,
-      Math.ceil((Math.max(3, ...tableNumbers) || 3) / 3) * 100
+      Math.ceil((Math.max(6, ...tableNumbers) || 6) / 3) * 100
     );
     club.style.setProperty("--room-width-units", String(width));
     window.setRoomExtent?.(width);
@@ -378,6 +397,9 @@
         club.insertBefore(createRoomTable(tableNumber), guests);
       }
       for (const side of ["left", "right"]) {
+        if (!document.querySelector(`[data-chair-table="${tableNumber}"][data-chair-side="${side}"]`)) {
+          chairLayer.append(createRoomChairVisual(tableNumber, side));
+        }
         if (!document.querySelector(`[data-seat-table="${tableNumber}"][data-seat-side="${side}"]`)) {
           club.insertBefore(createRoomSeat(tableNumber, side), guests);
         }
@@ -396,6 +418,9 @@
     });
     document.querySelectorAll(".dynamic-room-board").forEach(element => {
       if (!valid.has(String(element.dataset.boardTable))) element.remove();
+    });
+    document.querySelectorAll(".dynamic-room-chair").forEach(element => {
+      if (!valid.has(String(element.dataset.chairTable))) element.remove();
     });
     document.querySelectorAll(".dynamic-room-row").forEach(element => {
       if (!valid.has(String(element.dataset.focus))) element.remove();
@@ -468,13 +493,13 @@
       guest.className = "room-guest blue-dress-player";
       guest.dataset.playerId = player.id;
       guest.style.setProperty("--guest-dress", palette.color);
-      guest.style.setProperty("--guest-mask", `url("${sprite}")`);
+      guest.style.setProperty("--guest-mask", `url("${sprite.replace("/sprites/", "/sprites/dress-masks/")}")`);
       guest.style.setProperty("--py", seat ? "82.8%" : "69%");
 
       if (seat) {
         const tableElement = document.querySelector(`.table[data-table="${seat.tableNumber}"]`);
         const tableX = Number.parseFloat(tableElement?.style.getPropertyValue("--x")) || 50;
-        x = tableX + (seat.side === "right" ? 7.3 : -7.3);
+        x = tableX + (seat.side === "right" ? 8 : -7);
         guest.classList.add("sitting", `seat-${seat.side}`);
         guest.classList.add(seat.side === "left" ? "facing-right" : "facing-left");
       } else {
@@ -530,7 +555,7 @@
     guest.classList.toggle("facing-left", data.facing !== "right");
     guest.classList.add("walking");
     clearTimeout(guest._walkTimer);
-    guest._walkTimer = setTimeout(() => guest.classList.remove("walking"), 220);
+    guest._walkTimer = setTimeout(() => guest.classList.remove("walking"), 360);
   }
 
   function flushRoomPresence() {
@@ -784,8 +809,19 @@
       if (interaction) interaction.textContent = "Заявка опубликована. Гостья ждёт соперника за столом 30 секунд.";
     }
   });
-  document.querySelector("#cancelOpponentSearch")?.addEventListener("click", () => {
-    document.querySelector("#opponentSearchDialog")?.close();
+  function cancelOpponentSearchAndLeaveSeat() {
+    const dialog = document.querySelector("#opponentSearchDialog");
+    if (dialog?.open) dialog.close();
+    cancelOwnSearch();
+    send({type: "table_leave"});
+    window.cancelRoomSeatAttempt?.();
+    const interaction = document.querySelector("#interaction");
+    if (interaction) interaction.textContent = "Заявка отменена. Нажмите на пол, чтобы продолжить движение.";
+  }
+  document.querySelector("#cancelOpponentSearch")?.addEventListener("click", cancelOpponentSearchAndLeaveSeat);
+  document.querySelector("#opponentSearchDialog")?.addEventListener("cancel", event => {
+    event.preventDefault();
+    cancelOpponentSearchAndLeaveSeat();
   });
   document.querySelector("#acceptOnlineInvitation")?.addEventListener("click", () => {
     if (currentInvitationId) {

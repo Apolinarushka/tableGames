@@ -1,4 +1,7 @@
 .club.new-room {
+  --room-art-aspect: 2.8888889;
+  --room-art-width: calc(100dvh * var(--room-art-aspect));
+  --room-unit: calc(var(--room-art-width) / 200);
   overflow-x: auto;
   overflow-y: hidden;
   background: #eadbc8;
@@ -13,35 +16,60 @@
 .seat-front-overlay {
   position: absolute;
   inset: 0 auto 0 0;
-  width: calc(var(--room-width-units) * 1vw);
-  background-position: left center;
-  background-size: 100vw 100%;
-  background-repeat: repeat-x;
+  width: calc(var(--room-width-units) * var(--room-unit));
   pointer-events: none;
 }
 
 .new-room-backdrop {
   z-index: 1;
-  background-image: url("assets/new-room/room-clean.png");
+  background-color: #f2deca;
+  background-image: url("assets/new-room/room-panorama-v2.png");
+  background-position: left top;
+  background-size: calc(200 * var(--room-unit)) 100%;
+  background-repeat: repeat-x;
+  will-change: transform;
 }
 
 .new-room-foreground {
-  z-index: 12;
-  background-image: url("assets/new-room/front-furniture.png");
+  display: none;
 }
 
 .new-room-boards {
   position: absolute;
   inset: 0 auto 0 0;
-  width: calc(var(--room-width-units) * 1vw);
-  z-index: 14;
+  width: calc(var(--room-width-units) * var(--room-unit));
+  z-index: 17;
   pointer-events: none;
 }
 
+.room-furniture-back {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--room-width-units) * var(--room-unit));
+  z-index: 8;
+  pointer-events: none;
+}
+
+.room-chair-visual {
+  position: absolute;
+  left: calc(var(--chair-x) * var(--room-unit));
+  top: 68%;
+  width: clamp(88px, calc(13 * var(--room-unit)), 180px);
+  height: auto;
+  transform: translate(-50%, -5%);
+  transform-origin: 50% 75%;
+  filter: drop-shadow(0 8px 7px rgb(61 38 19 / 22%));
+  transition: transform .34s cubic-bezier(.2,.8,.25,1), filter .25s ease;
+  user-select: none;
+}
+
+.room-chair-visual.pulled[data-chair-side="left"] { transform: translate(-62%, 6%); }
+.room-chair-visual.pulled[data-chair-side="right"] { transform: translate(-38%, 6%); }
+
 .new-room-board {
   position: absolute;
-  left: calc(var(--board-x) * 1vw);
-  width: clamp(78px, 10.4vw, 154px);
+  left: calc(var(--board-x) * var(--room-unit));
+  width: clamp(78px, calc(10.4 * var(--room-unit)), 154px);
   height: auto;
   filter: drop-shadow(0 5px 5px rgb(62 42 22 / 18%));
   transform: translate(-50%, -50%) rotateZ(var(--board-rotate, 0deg)) scaleY(.72);
@@ -49,22 +77,22 @@
 }
 
 .new-room-board-left {
-  top: 62.9%;
+  top: 66.2%;
   --board-rotate: -1.6deg;
 }
 
 .new-room-board-center {
-  top: 63%;
+  top: 66.2%;
   --board-rotate: .4deg;
 }
 
 .new-room-board-right {
-  top: 62.9%;
+  top: 66.2%;
   --board-rotate: 1.4deg;
 }
 
 .new-room-board.dynamic-room-board {
-  top: 63%;
+  top: 66.2%;
   --board-rotate: .4deg;
 }
 
@@ -148,16 +176,32 @@
 }
 
 .new-room .new-room-table {
-  left: calc(var(--x) * 1vw);
-  top: 69%;
+  left: calc(var(--x) * var(--room-unit));
+  top: 73%;
   z-index: 16;
-  width: 19%;
-  height: 18%;
+  width: calc(19 * var(--room-unit));
+  height: 31%;
   border: 0;
   border-radius: 50%;
   background: transparent;
   box-shadow: none;
   filter: none;
+  transform: translate(-50%, -50%);
+  overflow: visible;
+}
+
+.new-room .new-room-table .room-table-sprite {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  pointer-events: none;
+  filter: drop-shadow(0 11px 8px rgb(61 38 19 / 22%));
+  transition: filter .2s ease;
+  user-select: none;
 }
 
 .new-room .new-room-table::before,
@@ -171,9 +215,14 @@
   filter: none;
 }
 
+.new-room .new-room-table:hover .room-table-sprite,
+.new-room .new-room-table.near .room-table-sprite {
+  filter: drop-shadow(0 11px 8px rgb(61 38 19 / 22%)) drop-shadow(0 0 10px rgb(99 157 139 / 28%));
+}
+
 .new-room .new-room-table .table-number {
   left: 50%;
-  top: 19%;
+  top: 30%;
   padding: .18rem .38rem;
   border-radius: 999px;
   color: #5d4b33;
@@ -184,7 +233,7 @@
 }
 
 .new-room .new-room-table .table-status {
-  top: -2%;
+  top: 4%;
   color: #3d7056;
   border-color: rgb(97 124 101 / 18%);
   background: rgb(255 250 241 / 90%);
@@ -194,11 +243,11 @@
 
 .seat-hotspot {
   position: absolute;
-  left: calc(var(--seat-x) * 1vw);
-  z-index: 18;
-  top: 69%;
-  width: 10%;
-  height: 22%;
+  left: calc(var(--seat-x) * var(--room-unit));
+  z-index: 19;
+  top: 67%;
+  width: calc(10 * var(--room-unit));
+  height: 28%;
   border: 1px solid transparent;
   border-radius: 45%;
   background: transparent;
@@ -210,14 +259,15 @@
 .seat-hotspot:focus-visible,
 .seat-hotspot.pulled {
   outline: none;
-  border-color: rgb(255 255 255 / 84%);
-  background: rgb(109 168 178 / 13%);
-  box-shadow: 0 0 0 .42rem rgb(105 164 179 / 10%);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 .seat-hotspot.occupied {
-  border-color: rgb(101 71 43 / 28%);
-  background: rgb(83 54 31 / 9%);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 .seat-hotspot.occupied-other {
@@ -226,20 +276,20 @@
 
 .seat-hotspot.occupied-other:hover,
 .seat-hotspot.occupied-other:focus-visible {
-  border-color: rgb(126 76 53 / 42%);
-  background: rgb(120 62 45 / 12%);
-  box-shadow: 0 0 0 .42rem rgb(120 62 45 / 7%);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 .club.new-room #player {
-  left: calc(var(--px) * 1vw);
+  left: calc(var(--px) * var(--room-unit));
   z-index: 10;
-  width: clamp(92px, 11.5vw, 176px);
-  height: clamp(155px, 21vw, 320px);
+  width: clamp(92px, calc(11.5 * var(--room-unit)), 176px);
+  height: clamp(155px, calc(21 * var(--room-unit)), 320px);
   opacity: 1;
   transform: translate(-50%, -100%);
   transform-origin: 50% 100%;
-  transition: left .1s linear, top .1s linear;
+  transition: left .14s linear, top .14s linear;
 }
 
 .club.new-room #player img {
@@ -271,7 +321,7 @@
   mask-repeat: no-repeat;
   -webkit-mask-size: contain;
   mask-size: contain;
-  clip-path: polygon(19% 21%, 82% 21%, 92% 79%, 8% 79%);
+  clip-path: none;
 }
 
 .club.new-room #player.facing-right img {
@@ -283,7 +333,7 @@
 }
 
 .club.new-room #player.walking img {
-  animation: newRoomWalkBob .36s ease-in-out infinite alternate;
+  animation: newRoomWalkBob .9s ease-in-out infinite alternate;
 }
 
 .club.new-room #player.walking.facing-right img {
@@ -292,21 +342,21 @@
 
 .club.new-room #player.sitting {
   z-index: 13;
-  width: clamp(92px, 9.4vw, 142px);
-  height: clamp(148px, 17.6vw, 264px);
-  transform: translate(-50%, -82%);
+  width: clamp(92px, calc(9.4 * var(--room-unit)), 142px);
+  height: clamp(148px, calc(17.6 * var(--room-unit)), 264px);
+  transform: translate(-50%, -100%);
 }
 
 .club.new-room #player.sitting.seat-left {
-  transform: translate(-56%, -82%);
+  transform: translate(-56%, -100%);
 }
 
 .club.new-room #player.sitting.seat-right {
-  transform: translate(-44%, -82%);
+  transform: translate(-44%, -100%);
 }
 
 .club.new-room #player.sitting .player-dress-tint {
-  clip-path: polygon(16% 20%, 88% 20%, 93% 82%, 4% 82%);
+  clip-path: none;
 }
 
 .room-player-name {
@@ -331,21 +381,21 @@
 .room-online-guests {
   position: absolute;
   inset: 0 auto 0 0;
-  width: calc(var(--room-width-units) * 1vw);
+  width: calc(var(--room-width-units) * var(--room-unit));
   z-index: 9;
   pointer-events: none;
 }
 
 .room-guest {
   position: absolute;
-  left: calc(var(--px) * 1vw);
+  left: calc(var(--px) * var(--room-unit));
   top: var(--py);
-  width: clamp(92px, 11.5vw, 176px);
-  height: clamp(155px, 21vw, 320px);
+  width: clamp(92px, calc(11.5 * var(--room-unit)), 176px);
+  height: clamp(155px, calc(21 * var(--room-unit)), 320px);
   z-index: 9;
   transform: translate(-50%, -100%);
   transform-origin: 50% 100%;
-  transition: left .24s linear, top .24s linear;
+  transition: left .34s ease-out, top .34s ease-out;
 }
 
 .room-guest > img,
@@ -375,7 +425,7 @@
   mask-repeat: no-repeat;
   -webkit-mask-size: contain;
   mask-size: contain;
-  clip-path: polygon(19% 21%, 82% 21%, 92% 79%, 8% 79%);
+  clip-path: none;
 }
 
 .room-guest.facing-right > img,
@@ -384,27 +434,27 @@
 }
 
 .room-guest.walking {
-  animation: newRoomGuestWalk .36s ease-in-out infinite alternate;
+  animation: newRoomGuestWalk .9s ease-in-out infinite alternate;
 }
 
 .room-guest.sitting {
   top: 82.8%;
   z-index: 13;
-  width: clamp(92px, 9.4vw, 142px);
-  height: clamp(148px, 17.6vw, 264px);
-  transform: translate(-50%, -82%);
+  width: clamp(92px, calc(9.4 * var(--room-unit)), 142px);
+  height: clamp(148px, calc(17.6 * var(--room-unit)), 264px);
+  transform: translate(-50%, -100%);
 }
 
 .room-guest.sitting.seat-left {
-  transform: translate(-56%, -82%);
+  transform: translate(-56%, -100%);
 }
 
 .room-guest.sitting.seat-right {
-  transform: translate(-44%, -82%);
+  transform: translate(-44%, -100%);
 }
 
 .room-guest.sitting .guest-dress-tint {
-  clip-path: polygon(16% 20%, 88% 20%, 93% 82%, 4% 82%);
+  clip-path: none;
 }
 
 .room-guest .room-player-name {
@@ -417,6 +467,11 @@
 .seat-front-overlay {
   z-index: 15;
   display: none;
+}
+
+.club.new-room .seat-front-overlay,
+.club.new-room .seat-front-overlay.visible {
+  display: none !important;
 }
 
 .seat-front-overlay.visible {
@@ -457,29 +512,20 @@
 }
 
 @keyframes newRoomWalkBob {
-  to { transform: translateY(-3px); }
+  to { transform: translateY(-1px); }
 }
 
 @keyframes newRoomWalkBobRight {
   from { transform: scaleX(-1) translateY(0); }
-  to { transform: scaleX(-1) translateY(-3px); }
+  to { transform: scaleX(-1) translateY(-1px); }
 }
 
 @keyframes newRoomGuestWalk {
-  to { margin-top: -3px; }
+  to { margin-top: -1px; }
 }
 
 @media (max-width: 850px) {
-  .new-room-backdrop,
-  .new-room-foreground,
-  .seat-front-overlay {
-    background-position: center bottom;
-    background-size: cover;
-  }
-
-  .new-room .room-streak-quick {
-    display: none;
-  }
+  .new-room-backdrop { background-position: left top; }
 
   .topbar {
     gap: 10px;

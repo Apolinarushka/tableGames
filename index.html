@@ -77,14 +77,25 @@
         <img class="new-room-board new-room-board-center" data-board-table="2" style="--board-x:50" src="assets/new-room/left-board.png" alt="">
         <img class="new-room-board new-room-board-right" data-board-table="3" style="--board-x:80" src="assets/new-room/left-board.png" alt="">
       </div>
+      <div class="room-furniture-back" id="roomFurnitureBack" aria-hidden="true">
+        <img class="room-chair-visual chair-1-left" data-chair-table="1" data-chair-side="left" style="--chair-x:13" src="assets/new-room/chair-sprite-v2.png" alt="">
+        <img class="room-chair-visual chair-1-right" data-chair-table="1" data-chair-side="right" style="--chair-x:28" src="assets/new-room/chair-sprite-v2.png" alt="">
+        <img class="room-chair-visual chair-2-left" data-chair-table="2" data-chair-side="left" style="--chair-x:43" src="assets/new-room/chair-sprite-v2.png" alt="">
+        <img class="room-chair-visual chair-2-right" data-chair-table="2" data-chair-side="right" style="--chair-x:58" src="assets/new-room/chair-sprite-v2.png" alt="">
+        <img class="room-chair-visual chair-3-left" data-chair-table="3" data-chair-side="left" style="--chair-x:73" src="assets/new-room/chair-sprite-v2.png" alt="">
+        <img class="room-chair-visual chair-3-right" data-chair-table="3" data-chair-side="right" style="--chair-x:87" src="assets/new-room/chair-sprite-v2.png" alt="">
+      </div>
 
       <button class="table new-room-table table-1 available" data-table="1" style="--x:20;--y:65%" aria-label="Передний левый стол, свободен">
+        <img class="room-table-sprite" src="assets/new-room/table-sprite-v2.png" alt="" aria-hidden="true">
         <span class="table-number">01</span><span class="table-status">Свободен</span>
       </button>
       <button class="table new-room-table table-2 available" data-table="2" style="--x:50;--y:65%" aria-label="Передний центральный стол, свободен">
+        <img class="room-table-sprite" src="assets/new-room/table-sprite-v2.png" alt="" aria-hidden="true">
         <span class="table-number">02</span><span class="table-status">Свободен</span>
       </button>
       <button class="table new-room-table table-3 available" data-table="3" style="--x:80;--y:65%" aria-label="Передний правый стол, свободен">
+        <img class="room-table-sprite" src="assets/new-room/table-sprite-v2.png" alt="" aria-hidden="true">
         <span class="table-number">03</span><span class="table-status">Свободен</span>
       </button>
 
@@ -96,7 +107,7 @@
       <button class="seat-hotspot seat-3-right" data-seat-table="3" data-seat-side="right" style="--seat-x:87" aria-label="Сесть справа за стол 3"></button>
 
       <div class="room-online-guests" id="roomOnlineGuests" aria-live="polite"></div>
-      <div class="player blue-dress-player" id="player" style="--px:94;--py:69%;--guest-dress:#9fb9d8;--guest-mask:url(&quot;assets/new-room/sprites/walk-right-a.png&quot;)">
+      <div class="player blue-dress-player" id="player" style="--px:94;--py:69%;--guest-dress:#9fb9d8;--guest-mask:url(&quot;assets/new-room/sprites/dress-masks/walk-right-a.png&quot;)">
         <img id="roomPlayerSprite" src="assets/new-room/sprites/walk-right-a.png" alt="Девушка в голубом платье">
         <span class="player-dress-tint" id="roomPlayerDressTint" aria-hidden="true"></span>
         <span class="room-player-name">Вы</span>

@@ -148,7 +148,7 @@ function normalizeFortuneState(value) {
   const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   const parsedNext = Date.parse(String(source.nextSpinAt || ""));
   return {
-    nextSpinAt: Number.isFinite(parsedNext) ? new Date(parsedNext).toISOString() : null,
+    nextSpinAt: fortuneCooldownMs > 0 && Number.isFinite(parsedNext) ? new Date(parsedNext).toISOString() : null,
     lastReward: safeInteger(source.lastReward, 0, 0, 6)
   };
 }
@@ -286,7 +286,7 @@ async function initializeDatabase() {
   `);
   await pool.query(`
     INSERT INTO club_tables(table_number)
-    SELECT value FROM generate_series(1, 3) AS value
+    SELECT value FROM generate_series(1, 6) AS value
     ON CONFLICT (table_number) DO NOTHING
   `);
   await pool.query("UPDATE club_players SET connected = false, looking_for_opponent = false, looking_game = NULL, looking_level = NULL, looking_started_at = NULL, guest_slot = NULL");
@@ -298,18 +298,18 @@ async function getSnapshot() {
   await expireSearchRequests();
   const capacityResult = await pool.query(`
     SELECT GREATEST(
-      3,
+      6,
       CEIL(COUNT(*)::numeric / 2)::integer,
       COALESCE((
         SELECT MAX(table_number)
         FROM club_tables
         WHERE player_one IS NOT NULL OR player_two IS NOT NULL
-      ), 3)
+      ), 6)
     ) AS "tableCount"
     FROM club_players
     WHERE connected = true
   `);
-  const tableCount = Number(capacityResult.rows[0]?.tableCount) || 3;
+  const tableCount = Number(capacityResult.rows[0]?.tableCount) || 6;
   await pool.query(`
     INSERT INTO club_tables(table_number)
     SELECT value FROM generate_series(1, $1) AS value
@@ -392,7 +392,7 @@ async function getSnapshot() {
   return {
     type: "snapshot",
     tableCount,
-    roomWidthUnits: Math.ceil(tableCount / 3) * 100,
+    roomWidthUnits: Math.max(200, Math.ceil(tableCount / 3) * 100),
     onlineCount: playersResult.rows.length,
     players: playersResult.rows,
     tables: tablesResult.rows,
@@ -461,8 +461,11 @@ async function registerPlayer(socket, data) {
   }
   socket.guestSlot = guestSlot;
   if (!roomPresence.has(socket.sessionId)) {
+    const activePlayerCount=[...sockets].filter(item=>item.sessionId&&item.readyState===WebSocket.OPEN).length;
+    const spawnTableCount=Math.max(6,Math.ceil(activePlayerCount/2));
+    const spawnRoomWidth=Math.max(200,Math.ceil(spawnTableCount/3)*100);
     roomPresence.set(socket.sessionId, {
-      x: guestSpawnX(guestSlot),
+      x: crypto.randomInt(9,spawnRoomWidth-8),
       y: 69,
       facing: "left"
     });
@@ -483,8 +486,8 @@ function updateRoomPresence(socket, data) {
       .filter(item => item.sessionId && item.readyState === WebSocket.OPEN)
       .map(item => item.sessionId)
   );
-  const tableCount = Math.max(3, Math.ceil(activeSessions.size / 2));
-  const roomWidth = Math.ceil(tableCount / 3) * 100;
+  const tableCount = Math.max(6, Math.ceil(activeSessions.size / 2));
+  const roomWidth = Math.max(200,Math.ceil(tableCount / 3) * 100);
   const x = Math.max(7, Math.min(roomWidth - 4, Number(data.x) || 94));
   const y = 69;
   const facing = data.facing === "right" ? "right" : "left";
@@ -650,11 +653,11 @@ async function createMatch(firstId, secondId, game = "checkers", preferredTable 
     `, [[firstId, secondId]]);
     if (players.rows.length !== 2) throw new Error("Один из игроков уже вышел из клуба.");
     const capacityResult = await client.query(`
-      SELECT GREATEST(3, CEIL(COUNT(*)::numeric / 2)::integer) AS "tableCount"
+      SELECT GREATEST(6, CEIL(COUNT(*)::numeric / 2)::integer) AS "tableCount"
       FROM club_players
       WHERE connected = true
     `);
-    const tableCount = Number(capacityResult.rows[0]?.tableCount) || 3;
+    const tableCount = Number(capacityResult.rows[0]?.tableCount) || 6;
     await client.query(`
       INSERT INTO club_tables(table_number)
       SELECT value FROM generate_series(1, $1) AS value
@@ -1054,7 +1057,11 @@ async function spinFortune(socket,data) {
       return;
     }
     const segments=safeFortuneSegments(data.segments);
-    const winningIndex=crypto.randomInt(0,12);
+    const lowRewardIndexes=segments
+      .map((reward,index)=>({reward,index}))
+      .filter(item=>item.reward>=1&&item.reward<=3)
+      .map(item=>item.index);
+    const winningIndex=lowRewardIndexes[crypto.randomInt(0,lowRewardIndexes.length)];
     const reward=segments[winningIndex];
     const before=savedProfile.hearts.current;
     savedProfile.hearts.current=Math.min(heartMax,before+reward);

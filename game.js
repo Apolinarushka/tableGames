@@ -3,6 +3,8 @@ const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 const HEART_MAX = 10;
 const HEART_FIRST_RESTORE_MS = 10 * 60 * 1000;
 const HEART_NEXT_RESTORE_MS = 15 * 60 * 1000;
+// Временно отключено, чтобы колесо можно было тестировать без ожидания.
+const FORTUNE_TIMER_DISABLED = true;
 
 const storedProfileText = localStorage.getItem("quietMoveProfile");
 let storedProfile = null;
@@ -63,7 +65,8 @@ if (!["#171514", "#4a2d22", "#783f2b", "#6f2535", "#c7ad83"].includes(profile.ha
 let profileCompleted = hadStoredProfile && localStorage.getItem("quietMoveWelcomed") === "1";
 let profileSaveQueue = Promise.resolve();
 let pos = { x: 94, y: 69 }, targetPos = null, arrivalCallback = null, nearTable = null, nearBulletin = false, soundOn = true, audioCtx;
-let roomWidthUnits = 100;
+let roomWidthUnits = 200;
+let roomCameraTarget = 0, roomCameraFrame = 0;
 let board = [], turn = "white", selected = null, chainPiece = null, seconds = 60, timerId, gameOver = false, moveHistory = [], activeOpeningName = null, announcedOpeningName = null, announcedEndgameClass = null;
 let checkersMoveAnimating = false, checkersAnimationRun = 0;
 let checkersTimeline = [], checkersTimelineIndex = -1, checkersHistoryReview = false, checkersAnalysisMode = false, checkersResultRecorded = false, gameActionGeneration = 0;
@@ -593,7 +596,7 @@ function normalizeFortuneState(value) {
   const source=value&&typeof value==="object"&&!Array.isArray(value)?value:{};
   const parsedNext=Date.parse(String(source.nextSpinAt||""));
   return {
-    nextSpinAt:Number.isFinite(parsedNext)?new Date(parsedNext).toISOString():null,
+    nextSpinAt:!FORTUNE_TIMER_DISABLED&&Number.isFinite(parsedNext)?new Date(parsedNext).toISOString():null,
     lastReward:Math.min(6,Math.max(0,Math.round(Number(source.lastReward)||0)))
   };
 }
@@ -687,7 +690,7 @@ window.handleFortuneResult=data=>{
   const winningIndex=Math.min(11,Math.max(0,Math.round(Number(data.winningIndex)||0)));
   const currentNormalized=((fortuneRotation%360)+360)%360;
   const targetNormalized=(360-winningIndex*30)%360;
-  fortuneRotation+=360*7+((targetNormalized-currentNormalized+360)%360);
+  fortuneRotation+=360*2+((targetNormalized-currentNormalized+360)%360);
   const wheel=$("#fortuneWheel");
   wheel.style.transform=`rotate(${fortuneRotation}deg)`;
   $("#fortuneNumbers")?.style.setProperty("--fortune-counter-rotation",`${-fortuneRotation}deg`);
@@ -712,7 +715,7 @@ window.handleFortuneResult=data=>{
       ?"Награда сохранена. Возвращайтесь через 12 часов."
       :"Тестовый режим: колесо снова доступно.";
     updateHeartsUI();updateFortuneUI();
-  },5500);
+  },3200);
 };
 
 function settleHeartRegeneration(persist = false) {
@@ -1181,8 +1184,9 @@ window.toast=toast;
 
 function setRoomPlayerSprite(src) {
   const player=$("#player"),sprite=$("#roomPlayerSprite");
-  if(sprite)sprite.src=src;
-  player?.style.setProperty("--guest-mask",`url("${src}")`);
+  if(sprite&&sprite.getAttribute("src")!==src)sprite.src=src;
+  const maskSrc=src.replace("/sprites/","/sprites/dress-masks/");
+  player?.style.setProperty("--guest-mask",`url("${maskSrc}")`);
 }
 
 function setRoomPlayerPresence(presence={}) {
@@ -1199,7 +1203,7 @@ function setRoomPlayerPresence(presence={}) {
 window.setRoomPlayerPresence=setRoomPlayerPresence;
 
 function setRoomExtent(units=100){
-  roomWidthUnits=Math.max(100,Number(units)||100);
+  roomWidthUnits=Math.max(200,Number(units)||200);
   const club=$("#club"),player=$("#player");
   club?.style.setProperty("--room-width-units",String(roomWidthUnits));
   if(pos.x>roomWidthUnits-4){
@@ -1219,14 +1223,31 @@ function roomUnitPixels(){
 
 function keepRoomPlayerInView(){
   const club=$("#club");
-  if(!club?.classList.contains("new-room")||club.scrollWidth<=club.clientWidth)return;
-  const playerPixels=pos.x*roomUnitPixels();
-  const margin=Math.min(club.clientWidth*.24,260);
-  if(playerPixels>club.scrollLeft+club.clientWidth-margin){
-    club.scrollLeft=Math.min(club.scrollWidth-club.clientWidth,playerPixels-club.clientWidth+margin);
-  }else if(playerPixels<club.scrollLeft+margin){
-    club.scrollLeft=Math.max(0,playerPixels-margin);
+  if(!club?.classList.contains("new-room"))return;
+  if(club.scrollWidth<=club.clientWidth){
+    roomCameraTarget=0;
+    club.scrollLeft=0;
+    return;
   }
+  const playerPixels=pos.x*roomUnitPixels();
+  const player=$("#player");
+  const lookAhead=player?.classList.contains("facing-right") ? .46 : .54;
+  roomCameraTarget=Math.max(0,Math.min(
+    club.scrollWidth-club.clientWidth,
+    playerPixels-club.clientWidth*lookAhead
+  ));
+  if(roomCameraFrame)return;
+  const animateCamera=()=>{
+    const difference=roomCameraTarget-club.scrollLeft;
+    if(Math.abs(difference)<.45){
+      club.scrollLeft=roomCameraTarget;
+      roomCameraFrame=0;
+      return;
+    }
+    club.scrollLeft+=difference*.13;
+    roomCameraFrame=requestAnimationFrame(animateCamera);
+  };
+  roomCameraFrame=requestAnimationFrame(animateCamera);
 }
 
 function movePlayer(x, y) {
@@ -1242,7 +1263,7 @@ function movePlayer(x, y) {
   }
   const sprite=$("#roomPlayerSprite");
   if(sprite&&!player.classList.contains("sitting")){
-    const frame=Math.floor(Date.now()/180)%2?"b":"a";
+    const frame=Math.floor(Date.now()/560)%2?"b":"a";
     setRoomPlayerSprite(`assets/new-room/sprites/walk-right-${frame}.png`);
   }
   window.clubOnline?.updateRoomPresence?.({
@@ -1250,7 +1271,7 @@ function movePlayer(x, y) {
     y:pos.y,
     facing:player.classList.contains("facing-right")?"right":"left"
   });
-  player.classList.add("walking"); clearTimeout(movePlayer.t); movePlayer.t = setTimeout(() => player.classList.remove("walking"), 180);
+  player.classList.add("walking"); clearTimeout(movePlayer.t); movePlayer.t = setTimeout(() => player.classList.remove("walking"), 280);
   keepRoomPlayerInView();
   detectTable();
 }
@@ -1298,11 +1319,11 @@ setInterval(() => {
       movePlayer(targetPos.x, targetPos.y); targetPos = null;
       const done = arrivalCallback; arrivalCallback = null; if (done) done();
     } else {
-      const step = Math.min(.22, distance);
+      const step = Math.min(.16, distance);
       movePlayer(pos.x + tx / distance * step, pos.y + ty / distance * step);
     }
   }
-}, 30);
+}, 40);
 $("#club").addEventListener("click", e => {
   if(seatingInProgress)return;
   const seat=e.target.closest("[data-seat-table][data-seat-side]");
@@ -1322,7 +1343,14 @@ $("#club").addEventListener("click", e => {
   if(e.target.closest("button,aside,.chat-panel"))return;
   const club=$("#club"),r=club.getBoundingClientRect();
   const x=(e.clientX-r.left+club.scrollLeft)/roomUnitPixels();
-  walkTo(x,(e.clientY-r.top)/r.height*100);
+  const y=(e.clientY-r.top)/r.height*100;
+  if(activeSeat){
+    window.clubOnline?.cancelSearch?.();
+    window.clubOnline?.leaveTable?.();
+    leaveSeat(()=>walkTo(x,y));
+    return;
+  }
+  walkTo(x,y);
 });
 $("#roomsPanel").addEventListener("click", event => {
   const row=event.target.closest("[data-focus]");
@@ -1372,15 +1400,18 @@ function sitAtTable(table,seatSide=null) {
   seatingInProgress = true;
   const x = parseFloat(table.style.getPropertyValue("--x"));
   const y = parseFloat(table.style.getPropertyValue("--y"));
-  const seatX=x+(seatSide==="right"?7.3:-7.3);
+  // Use the exact center of the rendered stool so the seated pose lands on its cushion.
+  const seatX=x+(seatSide==="right"?8:-7);
   $("#interaction").textContent = "Подходим к стулу…";
   walkTo(seatX, newRoom?69:y+8, () => {
     const chair = newRoom
       ? $(`[data-seat-table="${table.dataset.table}"][data-seat-side="${seatSide}"]`)
       : $(`.chair.${seatSide==="right"?"c2":"c1"}`, table);
-    activeSeat = { table, chair, seatSide };
+    const chairVisual=$('[data-chair-table="'+table.dataset.table+'"][data-chair-side="'+seatSide+'"]');
+    activeSeat = { table, chair, chairVisual, seatSide };
     table.classList.add("seat-in-use");
     chair?.classList.add("pulled");
+    chairVisual?.classList.add("pulled");
     $("#player").classList.toggle("facing-right",seatSide==="left");
     $("#player").classList.toggle("facing-left",seatSide==="right");
     setRoomPlayerSprite("assets/new-room/sprites/pull-chair.png");
@@ -1410,9 +1441,15 @@ function sitAtTable(table,seatSide=null) {
     }, 420);
   });
 }
-function leaveSeat() {
-  if (!activeSeat) return;
-  const { table, chair } = activeSeat;
+function leaveSeat(onLeft=null) {
+  if (!activeSeat) {
+    if(typeof onLeft==="function")onLeft();
+    return;
+  }
+  const { table, chair, chairVisual } = activeSeat;
+  activeSeat = null;
+  targetPos = null;
+  arrivalCallback = null;
   $("#player").classList.remove("sitting");
   $("#player").classList.remove("seat-left","seat-right");
   setRoomPlayerSprite("assets/new-room/sprites/walk-right-a.png");
@@ -1421,9 +1458,10 @@ function leaveSeat() {
   movePlayer(pos.x, $("#club")?.classList.contains("new-room")?69:pos.y+5);
   setTimeout(() => {
     chair?.classList.remove("pulled");
+    chairVisual?.classList.remove("pulled");
     table.classList.remove("seat-in-use");
-    activeSeat = null;
     detectTable();
+    if(typeof onLeft==="function")onLeft();
   }, 320);
 }
 function cancelRoomSeatAttempt(){
@@ -1438,6 +1476,7 @@ function cancelRoomSeatAttempt(){
   detectTable();
 }
 window.cancelRoomSeatAttempt=cancelRoomSeatAttempt;
+window.addEventListener("resize",keepRoomPlayerInView,{passive:true});
 
 const clubSidebar=$("#clubSidebar"),sidebarCollapse=$("#sidebarCollapse");
 function setSidebarCollapsed(collapsed,persist=true){

@@ -37,8 +37,8 @@
   .mini-avatar { width: 30px; height: 30px; }
 
   .club.new-room {
-    --mobile-room-segment: calc(100dvh * 1.358736);
-    --mobile-room-unit: calc(var(--mobile-room-segment) / 100);
+    --mobile-room-segment: calc(100 * var(--room-unit));
+    --mobile-room-unit: var(--room-unit);
     height: 100dvh;
     padding-top: 0;
     touch-action: pan-x;
@@ -49,11 +49,14 @@
   .new-room-foreground,
   .seat-front-overlay {
     width: calc(var(--room-width-units) * var(--mobile-room-unit));
-    background-position: left center;
-    background-size: var(--mobile-room-segment) 100%;
+  }
+  .new-room-backdrop {
+    background-position: left top;
+    background-size: calc(200 * var(--room-unit)) 100%;
   }
   .new-room-boards,
-  .room-online-guests { width: calc(var(--room-width-units) * var(--mobile-room-unit)); }
+  .room-online-guests,
+  .room-furniture-back { width: calc(var(--room-width-units) * var(--mobile-room-unit)); }
   .new-room-board {
     left: calc(var(--board-x) * var(--mobile-room-unit));
     width: clamp(78px, calc(var(--mobile-room-segment) * .104), 154px);
@@ -61,6 +64,10 @@
   .new-room .new-room-table {
     left: calc(var(--x) * var(--mobile-room-unit));
     width: calc(var(--mobile-room-segment) * .19);
+  }
+  .room-chair-visual {
+    left: calc(var(--chair-x) * var(--mobile-room-unit));
+    width: clamp(96px, calc(var(--mobile-room-segment) * .13), 180px);
   }
   .new-room .new-room-table .table-status { top: -18%; }
   .new-room .new-room-table .table-number { top: 31%; }
@@ -74,12 +81,12 @@
   .room-guest.sitting {
     width: clamp(100px, calc(var(--mobile-room-segment) * .094), 142px);
     height: clamp(190px, calc(var(--mobile-room-segment) * .19), 240px);
-    transform: translate(-50%, -102%);
+    transform: translate(-50%, -100%);
   }
   .club.new-room #player.sitting.seat-left,
-  .room-guest.sitting.seat-left { transform: translate(-72%, -102%); }
+  .room-guest.sitting.seat-left { transform: translate(-56%, -100%); }
   .club.new-room #player.sitting.seat-right,
-  .room-guest.sitting.seat-right { transform: translate(-28%, -102%); }
+  .room-guest.sitting.seat-right { transform: translate(-44%, -100%); }
   .new-room .interaction {
     left: var(--mobile-gutter);
     right: var(--mobile-gutter);
