@@ -537,8 +537,31 @@ function mergeStoredProfile(savedProfile) {
   profile.fortune = normalizeFortuneState(profile.fortune);
   profile.clubCoins = Math.max(0, Math.round(Number(profile.clubCoins) || 0));
 }
+function applyVKUserProfile(vkState, resetProgress = false) {
+  const user = vkState?.user;
+  if (!user || typeof user !== "object") return;
+  if (resetProgress) {
+    profile.rating = 1000;
+    profile.games = [];
+    profile.winStreak = 0;
+    profile.bestWinStreak = 0;
+    profile.hearts = normalizeHeartState({current: HEART_MAX});
+    profile.fortune = normalizeFortuneState({});
+    profile.clubCoins = 200;
+  }
+  const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
+  if (fullName) profile.name = fullName.slice(0, 32);
+  if (user.city?.title) profile.city = String(user.city.title).slice(0, 80);
+  if (user.photo_200) profile.photo = String(user.photo_200).slice(0, 1000);
+  profile.authProvider = vkState.mock ? "VK · тест" : "VK";
+}
 async function hydrateProfileSession() {
   try {
+    const vkState = await (window.vkPlatform?.ready || Promise.resolve(null));
+    if (vkState?.authenticated && vkState.sessionId) {
+      profileSessionId = vkState.sessionId;
+      localStorage.setItem(profileSessionStorageKey, profileSessionId);
+    }
     const response = await fetch("/api/profile", {
       method: "GET",
       headers: {"X-Session-Id": profileSessionId},
@@ -553,9 +576,16 @@ async function hydrateProfileSession() {
     }
     if (data.completed) {
       mergeStoredProfile(data.profile);
+      if (vkState?.enabled) profile.authProvider = vkState.mock ? "VK · тест" : "VK";
       profileCompleted = true;
       localStorage.setItem("quietMoveWelcomed", "1");
       localStorage.setItem("quietMoveProfile", JSON.stringify(profile));
+    } else if (vkState?.authenticated) {
+      applyVKUserProfile(vkState, true);
+      localStorage.setItem("quietMoveProfile", JSON.stringify(profile));
+      await persistProfileToServer();
+    } else if (vkState?.mock) {
+      applyVKUserProfile(vkState, false);
     } else if (profileCompleted) {
       await persistProfileToServer();
     }
@@ -1542,6 +1572,10 @@ $("#removeProfilePhoto").addEventListener("click",()=>{
   profile.photo="";saveProfile();applyProfile();toast("Фотография удалена");
 });
 $$("[data-social-provider]").forEach(button=>button.addEventListener("click",()=>{
+  if(button.dataset.socialProvider==="VK"&&!window.vkPlatform?.isVK){
+    toast("Для входа через VK откройте игру из приложения ВКонтакте");
+    return;
+  }
   profile.authProvider=button.dataset.socialProvider;
   saveProfile();applyProfile();
   toast(`Профиль связан с ${profile.authProvider} на этом устройстве`);

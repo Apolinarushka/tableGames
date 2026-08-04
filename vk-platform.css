@@ -1,0 +1,43 @@
+:root {
+  --vk-viewport-height: 100dvh;
+  --vk-viewport-width: 100vw;
+}
+
+html.vk-mini-app,
+body.vk-mini-app {
+  width: var(--vk-viewport-width);
+  height: var(--vk-viewport-height);
+  min-height: var(--vk-viewport-height);
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+body.vk-mini-app #app,
+body.vk-mini-app .club,
+body.vk-mini-app .game-dialog {
+  height: var(--vk-viewport-height);
+  max-height: var(--vk-viewport-height);
+}
+
+body.vk-mini-app .topbar {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+body.vk-mini-app .game-loading-screen,
+body.vk-mini-app dialog::backdrop {
+  width: var(--vk-viewport-width);
+  height: var(--vk-viewport-height);
+}
+
+@media (max-width: 700px) {
+  body.vk-mini-app .club,
+  body.vk-mini-app .arcade-dialog,
+  body.vk-mini-app .arcade-shell {
+    height: var(--vk-viewport-height);
+    min-height: var(--vk-viewport-height);
+  }
+
+  body.vk-mini-app .sidebar {
+    max-height: calc(var(--vk-viewport-height) - 76px);
+  }
+}

@@ -24,6 +24,8 @@ services:
       NODE_ENV: "development"
       PORT: "4173"
       DATABASE_URL: "postgresql://tablegames:tablegames_local@db:5432/tablegames"
+      VK_APP_ID: "${VK_APP_ID:-}"
+      VK_APP_SECRET: "${VK_APP_SECRET:-}"
     command: ["node", "dev-server.js"]
     depends_on:
       db:

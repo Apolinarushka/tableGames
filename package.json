@@ -5,9 +5,11 @@
   "description": "Браузерный клуб настольных игр «Твой ход»",
   "scripts": {
     "start": "node server.js",
-    "dev": "node dev-server.js"
+    "dev": "node dev-server.js",
+    "test": "node --test tests/vk-signature.test.js"
   },
   "dependencies": {
+    "@vkontakte/vk-bridge": "^3.0.2",
     "pg": "^8.22.0",
     "ws": "^8.21.1"
   }

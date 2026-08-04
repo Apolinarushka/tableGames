@@ -3,6 +3,8 @@ const {Pool} = require("pg");
 const {WebSocketServer, WebSocket} = require("ws");
 
 const databaseUrl = process.env.DATABASE_URL;
+const vkAppId = String(process.env.VK_APP_ID || "").trim();
+const vkAppSecret = String(process.env.VK_APP_SECRET || "").trim();
 const pool = new Pool({
   connectionString: databaseUrl,
   max: 10,
@@ -65,6 +67,38 @@ function sessionCookie(request, sessionId) {
   const forwardedProtocol = safeText(request.headers["x-forwarded-proto"], 20).toLowerCase();
   const secure = request.socket.encrypted || forwardedProtocol === "https";
   return `${sessionCookieName}=${encodeURIComponent(sessionId)}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
+}
+
+function verifyVkLaunchParams(rawLaunchParams) {
+  if (!vkAppId || !vkAppSecret) {
+    throw Object.assign(new Error("vk_not_configured"), {statusCode: 503});
+  }
+  const launchParams = safeText(rawLaunchParams, 20000).replace(/^\?/, "");
+  const params = new URLSearchParams(launchParams);
+  const sign = safeText(params.get("sign"), 200);
+  const appId = safeText(params.get("vk_app_id"), 32);
+  const userId = safeText(params.get("vk_user_id"), 32);
+  if (!sign || !/^\d+$/.test(appId) || !/^\d+$/.test(userId) || appId !== vkAppId) {
+    throw Object.assign(new Error("vk_launch_params_invalid"), {statusCode: 401});
+  }
+
+  const signedParams = [...params.entries()]
+    .filter(([key]) => key.startsWith("vk_"))
+    .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0);
+  const checkString = new URLSearchParams(signedParams).toString();
+  const expected = crypto
+    .createHmac("sha256", vkAppSecret)
+    .update(checkString)
+    .digest("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+  const expectedBuffer = Buffer.from(expected);
+  const suppliedBuffer = Buffer.from(sign);
+  if (expectedBuffer.length !== suppliedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, suppliedBuffer)) {
+    throw Object.assign(new Error("vk_signature_invalid"), {statusCode: 401});
+  }
+  return {appId, userId};
 }
 
 function sendJson(response, status, payload, headers = {}) {
@@ -245,6 +279,11 @@ async function initializeDatabase() {
       WHERE connected = true AND guest_slot IS NOT NULL;
     ALTER TABLE club_players ADD COLUMN IF NOT EXISTS profile jsonb NOT NULL DEFAULT '{}'::jsonb;
     ALTER TABLE club_players ADD COLUMN IF NOT EXISTS profile_completed boolean NOT NULL DEFAULT false;
+    ALTER TABLE club_players ADD COLUMN IF NOT EXISTS auth_provider text;
+    ALTER TABLE club_players ADD COLUMN IF NOT EXISTS provider_user_id text;
+    CREATE UNIQUE INDEX IF NOT EXISTS club_players_provider_identity_idx
+      ON club_players(auth_provider, provider_user_id)
+      WHERE auth_provider IS NOT NULL AND provider_user_id IS NOT NULL;
     CREATE TABLE IF NOT EXISTS club_tables (
       table_number integer PRIMARY KEY,
       player_one text REFERENCES club_players(session_id) ON DELETE SET NULL,
@@ -1177,6 +1216,50 @@ async function handleOnlineHttp(request, response, requestPath) {
     response.end(JSON.stringify(await getSnapshot()));
     return true;
   }
+  if (requestPath === "/api/vk/session") {
+    if (request.method !== "POST") {
+      response.writeHead(405, {"Allow": "POST"});
+      response.end();
+      return true;
+    }
+    try {
+      const body = await readJsonBody(request, 25000);
+      const identity = verifyVkLaunchParams(body.launchParams);
+      const generatedSessionId = crypto.randomUUID();
+      await pool.query(`
+        INSERT INTO club_players(
+          session_id, nickname, connected, auth_provider, provider_user_id, last_seen
+        )
+        VALUES ($1, $2, false, 'VK', $3, now())
+        ON CONFLICT DO NOTHING
+      `, [generatedSessionId, `VK ${identity.userId}`, identity.userId]);
+      const result = await pool.query(`
+        SELECT session_id
+        FROM club_players
+        WHERE auth_provider = 'VK' AND provider_user_id = $1
+        LIMIT 1
+      `, [identity.userId]);
+      const sessionId = result.rows[0]?.session_id;
+      if (!sessionId) throw new Error("vk_session_creation_failed");
+      await pool.query("UPDATE club_players SET last_seen = now() WHERE session_id = $1", [sessionId]);
+      sendJson(response, 200, {
+        status: "ok",
+        sessionId,
+        appId: identity.appId,
+        userId: identity.userId
+      }, {"Set-Cookie": sessionCookie(request, sessionId)});
+    } catch (error) {
+      const statusCode = error.statusCode || 400;
+      sendJson(response, statusCode, {
+        status: "error",
+        code: error.message,
+        message: statusCode === 503
+          ? "Интеграция VK ещё не настроена на сервере."
+          : "Не удалось подтвердить запуск игры через VK."
+      });
+    }
+    return true;
+  }
   if (requestPath === "/api/profile") {
     const sessionId = sessionIdFromRequest(request);
     const cookieHeader = {"Set-Cookie": sessionCookie(request, sessionId)};
@@ -1232,5 +1315,6 @@ async function handleOnlineHttp(request, response, requestPath) {
 module.exports = {
   attachOnlineServer,
   handleOnlineHttp,
-  initializeDatabase
+  initializeDatabase,
+  verifyVkLaunchParams
 };
