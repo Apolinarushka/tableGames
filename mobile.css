@@ -21,6 +21,15 @@
   }
   .topbar-computer-button::after { content: "Против ПК"; font-size: 10px; }
   .topbar-rules-button::after { content: "Правила"; font-size: 10px; }
+  .heart-bank-button {
+    min-width: 44px;
+    min-height: 40px;
+    padding: 3px 5px;
+    column-gap: 3px;
+  }
+  .heart-bank-button > span { font-size: 19px; }
+  .heart-bank-button b { font-size: 10px; }
+  .heart-bank-button small { display: none; }
   .profile { gap: 0; }
   .profile-progress { display: none; }
   .avatar-button { min-width: 40px; min-height: 40px; padding: 5px; justify-content: center; }
@@ -231,6 +240,7 @@
   .brand small { display: none; }
   .topbar-computer-button::after { content: "ПК"; }
   .topbar-rules-button::after { content: "?"; font-size: 15px; }
+  .heart-bank-button { min-width: 41px; }
   .difficulty-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .arcade-scorebar p { font-size: 9px; }
 }

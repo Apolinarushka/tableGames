@@ -15,6 +15,11 @@ const supportedGames = new Set(["checkers", "giveaway", "corners", "chess", "dom
 const supportedLevels = new Set(["A1", "A2", "B1", "B2", "V1", "V2"]);
 const searchRequestTtlMs = 30_000;
 const roomPresence = new Map();
+const heartMax = 10;
+const heartFirstRestoreMs = 10 * 60 * 1000;
+const heartNextRestoreMs = 15 * 60 * 1000;
+// Временно отключено для тестирования колеса. Вернуть: 12 * 60 * 60 * 1000.
+const fortuneCooldownMs = 0;
 
 function tableX(tableNumber) {
   const panel = Math.floor((Number(tableNumber) - 1) / 3);
@@ -115,6 +120,39 @@ function safeLevel(value) {
   return supportedLevels.has(level) ? level : "B1";
 }
 
+function normalizeHeartState(value, now = Date.now()) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const currentValue = Number(source.current ?? heartMax);
+  const state = {
+    current: Math.min(heartMax, Math.max(0, Number.isFinite(currentValue) ? Math.round(currentValue) : heartMax)),
+    nextHeartAt: null,
+    nextDurationMs: Number(source.nextDurationMs) === heartNextRestoreMs ? heartNextRestoreMs : heartFirstRestoreMs
+  };
+  let nextAt = Date.parse(String(source.nextHeartAt || ""));
+  if (state.current < heartMax && !Number.isFinite(nextAt)) {
+    state.nextDurationMs = heartFirstRestoreMs;
+    nextAt = now + heartFirstRestoreMs;
+  }
+  while (state.current < heartMax && now >= nextAt) {
+    state.current += 1;
+    if (state.current >= heartMax) break;
+    state.nextDurationMs = heartNextRestoreMs;
+    nextAt += heartNextRestoreMs;
+  }
+  if (state.current < heartMax) state.nextHeartAt = new Date(nextAt).toISOString();
+  else state.nextDurationMs = heartFirstRestoreMs;
+  return state;
+}
+
+function normalizeFortuneState(value) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const parsedNext = Date.parse(String(source.nextSpinAt || ""));
+  return {
+    nextSpinAt: Number.isFinite(parsedNext) ? new Date(parsedNext).toISOString() : null,
+    lastReward: safeInteger(source.lastReward, 0, 0, 6)
+  };
+}
+
 function sanitizeProfile(value) {
   const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   const allowedPhoto = typeof source.photo === "string"
@@ -161,7 +199,10 @@ function sanitizeProfile(value) {
     rating: safeInteger(source.rating, 1000, 0, 100000),
     games,
     winStreak: safeInteger(source.winStreak, 0, 0, 100000),
-    bestWinStreak: safeInteger(source.bestWinStreak, 0, 0, 100000)
+    bestWinStreak: safeInteger(source.bestWinStreak, 0, 0, 100000),
+    hearts: normalizeHeartState(source.hearts),
+    clubCoins: safeInteger(source.clubCoins, 200, 0, 1000000),
+    fortune: normalizeFortuneState(source.fortune)
   };
 }
 
@@ -238,6 +279,10 @@ async function initializeDatabase() {
       created_at timestamptz NOT NULL DEFAULT now()
     );
     ALTER TABLE club_invitations ADD COLUMN IF NOT EXISTS level text NOT NULL DEFAULT 'B1';
+    CREATE TABLE IF NOT EXISTS club_heart_requests (
+      requester_session text PRIMARY KEY REFERENCES club_players(session_id) ON DELETE CASCADE,
+      requested_at timestamptz NOT NULL DEFAULT now()
+    );
   `);
   await pool.query(`
     INSERT INTO club_tables(table_number)
@@ -246,6 +291,7 @@ async function initializeDatabase() {
   `);
   await pool.query("UPDATE club_players SET connected = false, looking_for_opponent = false, looking_game = NULL, looking_level = NULL, looking_started_at = NULL, guest_slot = NULL");
   await pool.query("UPDATE club_tables SET player_one = NULL, player_two = NULL, player_one_seat = NULL, player_two_seat = NULL, updated_at = now()");
+  await pool.query("DELETE FROM club_chat WHERE message LIKE 'Просит помочь с попыткой:%'");
 }
 
 async function getSnapshot() {
@@ -269,7 +315,7 @@ async function getSnapshot() {
     SELECT value FROM generate_series(1, $1) AS value
     ON CONFLICT (table_number) DO NOTHING
   `, [tableCount]);
-  const [playersResult, tablesResult, chatResult, tableChatResult, invitationsResult] = await Promise.all([
+  const [playersResult, tablesResult, chatResult, tableChatResult, invitationsResult, heartRequestsResult] = await Promise.all([
     pool.query(`
       SELECT session_id AS id, nickname,
              (looking_for_opponent AND looking_started_at > now() - interval '30 seconds') AS "lookingForOpponent",
@@ -326,6 +372,14 @@ async function getSnapshot() {
       JOIN club_players recipient ON recipient.session_id = i.to_session
       WHERE i.status = 'pending' AND i.created_at > now() - interval '10 minutes'
       ORDER BY i.created_at DESC
+    `),
+    pool.query(`
+      SELECT r.requester_session AS "requesterId", p.nickname,
+             to_char(r.requested_at AT TIME ZONE 'Europe/Moscow', 'HH24:MI') AS time
+      FROM club_heart_requests r
+      JOIN club_players p ON p.session_id = r.requester_session
+      WHERE r.requested_at > now() - interval '24 hours'
+      ORDER BY r.requested_at
     `)
   ]);
   for (const player of playersResult.rows) {
@@ -344,7 +398,8 @@ async function getSnapshot() {
     tables: tablesResult.rows,
     messages: chatResult.rows.reverse(),
     tableMessages: tableChatResult.rows.reverse(),
-    invitations: invitationsResult.rows
+    invitations: invitationsResult.rows,
+    heartRequests: heartRequestsResult.rows
   };
 }
 
@@ -833,6 +888,204 @@ async function addChat(socket, data) {
   await broadcastSnapshot();
 }
 
+function sendToSession(sessionId, payload) {
+  const serialized = JSON.stringify(payload);
+  for (const clientSocket of sockets) {
+    if (clientSocket.sessionId === sessionId && clientSocket.readyState === WebSocket.OPEN) {
+      clientSocket.send(serialized);
+    }
+  }
+}
+
+async function requestHeart(socket) {
+  if (!socket.sessionId) return;
+  const result = await pool.query("SELECT profile FROM club_players WHERE session_id = $1", [socket.sessionId]);
+  const savedProfile = sanitizeProfile(result.rows[0]?.profile);
+  if (normalizeHeartState(savedProfile.hearts).current >= heartMax) {
+    sendToSession(socket.sessionId, {type:"notice",message:"Все десять сердец уже заполнены — помощь пока не нужна."});
+    return;
+  }
+  await pool.query(`
+    INSERT INTO club_heart_requests(requester_session, requested_at)
+    VALUES ($1, now())
+    ON CONFLICT (requester_session) DO UPDATE SET requested_at = now()
+  `, [socket.sessionId]);
+  sendToSession(socket.sessionId, {type:"notice",message:"Просьба отправлена в клубный ящик помощи."});
+  await broadcastSnapshot();
+}
+
+async function giftHeart(socket, data) {
+  if (!socket.sessionId) return;
+  const targetId = safeSessionId(data.targetId);
+  if (!targetId || targetId === socket.sessionId) return;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(`
+      SELECT p.session_id, p.nickname, p.profile
+      FROM club_heart_requests r
+      JOIN club_players p ON p.session_id = r.requester_session
+      WHERE r.requester_session = $1
+      FOR UPDATE OF p, r
+    `, [targetId]);
+    const targetRow = result.rows[0];
+    if (!targetRow) {
+      throw Object.assign(new Error("request_closed"), {publicMessage:"Эта просьба уже выполнена."});
+    }
+    const targetProfile = sanitizeProfile(targetRow.profile);
+    targetProfile.hearts = normalizeHeartState(targetProfile.hearts);
+    if (targetProfile.hearts.current >= heartMax) {
+      await client.query("DELETE FROM club_heart_requests WHERE requester_session = $1", [targetId]);
+      await client.query("COMMIT");
+      sendToSession(socket.sessionId, {type:"notice",message:`У игрока ${targetRow.nickname} уже полный запас сердец.`});
+      await broadcastSnapshot();
+      return;
+    }
+    targetProfile.hearts.current += 1;
+    if (targetProfile.hearts.current >= heartMax) {
+      targetProfile.hearts.current = heartMax;
+      targetProfile.hearts.nextHeartAt = null;
+      targetProfile.hearts.nextDurationMs = heartFirstRestoreMs;
+    }
+    await client.query("UPDATE club_players SET profile = $2::jsonb, last_seen = now() WHERE session_id = $1", [targetId, JSON.stringify(targetProfile)]);
+    await client.query("DELETE FROM club_heart_requests WHERE requester_session = $1", [targetId]);
+    await client.query("COMMIT");
+    sendToSession(socket.sessionId, {type:"notice",message:`Вы бесплатно отправили сердечко игроку ${targetRow.nickname}.`});
+    sendToSession(targetId, {
+      type:"heart_update",
+      hearts:targetProfile.hearts,
+      coins:targetProfile.clubCoins,
+      message:`${socket.nickname || "Друг клуба"} восстановил вам сердечко!`
+    });
+    await broadcastSnapshot();
+  } catch (error) {
+    await client.query("ROLLBACK");
+    sendToSession(socket.sessionId, {type:"notice", message:error.publicMessage || "Не удалось передать сердечко."});
+  } finally {
+    client.release();
+  }
+}
+
+async function giftHeartToAll(socket) {
+  if (!socket.sessionId) return;
+  const client = await pool.connect();
+  let helped = 0;
+  const updates = [];
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(`
+      SELECT p.session_id, p.nickname, p.profile
+      FROM club_heart_requests r
+      JOIN club_players p ON p.session_id = r.requester_session
+      WHERE r.requester_session <> $1
+      FOR UPDATE OF p, r
+    `, [socket.sessionId]);
+    const completedIds = [];
+    for (const row of result.rows) {
+      const targetProfile = sanitizeProfile(row.profile);
+      targetProfile.hearts = normalizeHeartState(targetProfile.hearts);
+      completedIds.push(row.session_id);
+      if (targetProfile.hearts.current >= heartMax) continue;
+      targetProfile.hearts.current += 1;
+      if (targetProfile.hearts.current >= heartMax) {
+        targetProfile.hearts.current = heartMax;
+        targetProfile.hearts.nextHeartAt = null;
+        targetProfile.hearts.nextDurationMs = heartFirstRestoreMs;
+      }
+      await client.query("UPDATE club_players SET profile = $2::jsonb, last_seen = now() WHERE session_id = $1", [row.session_id, JSON.stringify(targetProfile)]);
+      updates.push({sessionId:row.session_id,payload:{
+        type:"heart_update",
+        hearts:targetProfile.hearts,
+        coins:targetProfile.clubCoins,
+        message:`${socket.nickname || "Друг клуба"} восстановил вам сердечко!`
+      }});
+      helped += 1;
+    }
+    if (completedIds.length) {
+      await client.query("DELETE FROM club_heart_requests WHERE requester_session = ANY($1::text[])", [completedIds]);
+    }
+    await client.query("COMMIT");
+    for (const update of updates) sendToSession(update.sessionId,update.payload);
+    sendToSession(socket.sessionId, {
+      type:"notice",
+      message:helped?`Вы бесплатно помогли ${helped} ${helped===1?"игроку":"игрокам"}.`:"Новых просьб о помощи нет."
+    });
+    await broadcastSnapshot();
+  } catch (error) {
+    await client.query("ROLLBACK");
+    sendToSession(socket.sessionId, {type:"notice",message:"Не удалось отправить сердечки всем игрокам."});
+  } finally {
+    client.release();
+  }
+}
+
+function safeFortuneSegments(value) {
+  const segments = Array.isArray(value)
+    ? value.map(item=>safeInteger(item,0,0,6))
+    : [];
+  const valid = segments.length === 12 && [1,2,3,4,5,6].every(number =>
+    segments.filter(item=>item===number).length === 2
+  );
+  if (valid) return segments;
+  const generated = [1,2,3,4,5,6,1,2,3,4,5,6];
+  for (let index=generated.length-1;index>0;index-=1) {
+    const swapIndex=crypto.randomInt(0,index+1);
+    [generated[index],generated[swapIndex]]=[generated[swapIndex],generated[index]];
+  }
+  return generated;
+}
+
+async function spinFortune(socket,data) {
+  if(!socket.sessionId)return;
+  const client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const result=await client.query(`
+      SELECT profile FROM club_players WHERE session_id=$1 FOR UPDATE
+    `,[socket.sessionId]);
+    const savedProfile=sanitizeProfile(result.rows[0]?.profile);
+    savedProfile.hearts=normalizeHeartState(savedProfile.hearts);
+    savedProfile.fortune=normalizeFortuneState(savedProfile.fortune);
+    const now=Date.now();
+    const nextSpinAt=Date.parse(String(savedProfile.fortune.nextSpinAt||""));
+    if(fortuneCooldownMs>0&&Number.isFinite(nextSpinAt)&&nextSpinAt>now){
+      await client.query("ROLLBACK");
+      sendToSession(socket.sessionId,{type:"fortune_result",allowed:false,nextSpinAt:savedProfile.fortune.nextSpinAt});
+      return;
+    }
+    const segments=safeFortuneSegments(data.segments);
+    const winningIndex=crypto.randomInt(0,12);
+    const reward=segments[winningIndex];
+    const before=savedProfile.hearts.current;
+    savedProfile.hearts.current=Math.min(heartMax,before+reward);
+    if(savedProfile.hearts.current>=heartMax){
+      savedProfile.hearts.nextHeartAt=null;
+      savedProfile.hearts.nextDurationMs=heartFirstRestoreMs;
+    }
+    savedProfile.fortune={
+      nextSpinAt:fortuneCooldownMs>0?new Date(now+fortuneCooldownMs).toISOString():null,
+      lastReward:reward
+    };
+    await client.query("UPDATE club_players SET profile=$2::jsonb,last_seen=now() WHERE session_id=$1",[socket.sessionId,JSON.stringify(savedProfile)]);
+    await client.query("COMMIT");
+    sendToSession(socket.sessionId,{
+      type:"fortune_result",
+      allowed:true,
+      winningIndex,
+      reward,
+      added:savedProfile.hearts.current-before,
+      hearts:savedProfile.hearts,
+      coins:savedProfile.clubCoins,
+      nextSpinAt:savedProfile.fortune.nextSpinAt
+    });
+  }catch(error){
+    await client.query("ROLLBACK");
+    sendToSession(socket.sessionId,{type:"error",message:"Колесо фортуны временно недоступно."});
+  }finally{
+    client.release();
+  }
+}
+
 function attachOnlineServer(server) {
   const webSockets = new WebSocketServer({server, path: "/ws"});
   webSockets.on("connection", socket => {
@@ -844,6 +1097,10 @@ function attachOnlineServer(server) {
         const data = JSON.parse(String(raw));
         if (data.type === "hello") await registerPlayer(socket, data);
         else if (data.type === "chat") await addChat(socket, data);
+        else if (data.type === "heart_request") await requestHeart(socket);
+        else if (data.type === "heart_gift") await giftHeart(socket, data);
+        else if (data.type === "heart_gift_all") await giftHeartToAll(socket);
+        else if (data.type === "fortune_spin") await spinFortune(socket,data);
         else if (data.type === "table_join") await joinTable(socket, data);
         else if (data.type === "invite") await invitePlayer(socket, data);
         else if (data.type === "invite_reply") await replyToInvitation(socket, data);

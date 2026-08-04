@@ -155,6 +155,7 @@ function hideArcadeResult(){
 }
 function cleanupArcade(){clearTimeout(arcadeTimer);arcadeTimer=null;arcadeOver=true;pendingArcadeOnlineActions.length=0;clearArcadeMoveAnimation();hideArcadeResult();closeWinStreakPopup();cancelLossRescue();clearArcadeTimeline();cancelCoinToss();document.querySelector(".arcade-shell")?.classList.remove("arcade-pending-toss");arcadeEl("arcadeMarketSlot").classList.add("hidden");arcadeEl("arcadeMarketSlot").innerHTML=""}
 function openArcade(mode){
+  if(!hasHeartAttempt())return false;
   arcadeMode=mode;currentGameMode=mode;arcadeOver=false;clearArcadeMoveAnimation();hideArcadeResult();clearArcadeTimeline();
   if(!onlineHumanMatch(mode))window.clubOnline?.cancelSearch();
   if(!computerGameMenu)window.clubOnline?.joinTable(arcadeTableNo,mode);
@@ -218,6 +219,7 @@ function finishArcade(win,message,restart,skipLossRescue=false){
   updateArcadeHistoryControls();
   if(!arcadeResultRecorded){
     arcadeResultRecorded=true;
+    if(win===false)spendHeart("Поражение в партии");
     recordWinStreak(win===null?"draw":win?"win":"loss",arcadeNames[arcadeMode]);
   }
   arcadeEl("arcadeStatus").textContent=win===null?"Ничья":win?"Вы победили!":`${opponentName()} победил`;
@@ -273,6 +275,7 @@ document.querySelectorAll("[data-club-game]").forEach(button=>button.addEventLis
 let cornerBoard,cornerTurn,cornerSelected,cornerChain,cornerLast;
 const cornerDirs=[-1,0,1].flatMap(dr=>[-1,0,1].map(dc=>[dr,dc])).filter(([dr,dc])=>dr||dc);
 function startCorners(){
+  if(arcadeResultRecorded&&!hasHeartAttempt())return false;
   arcadeResultRecorded=false;closeWinStreakPopup();
   cornerBoard=Array.from({length:8},()=>Array(8).fill(null));
   for(let r=0;r<3;r++)for(let c=0;c<3;c++)cornerBoard[r][c]="bot";
@@ -413,6 +416,7 @@ let chessBoard,chessTurn,chessSelected,chessLastMove,chessHistory,chessHalfmove,
 const pendingArcadeOnlineActions=[];
 const chessSymbols={white:{k:"♔",q:"♕",r:"♖",b:"♗",n:"♘",p:"♙"},black:{k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"}};
 function startChess(){
+  if(arcadeResultRecorded&&!hasHeartAttempt())return false;
   arcadeResultRecorded=false;closeWinStreakPopup();
   hideArcadeResult();cancelCoinToss();clearTimeout(arcadeTimer);arcadeOver=true;
   document.querySelector(".arcade-shell")?.classList.add("arcade-pending-toss");
@@ -737,6 +741,7 @@ function finishFivesMatch(winner,reason){
   );
 }
 function startDomino(fives=false,keepScore=false,forcedStarter=null){
+  if(!keepScore&&arcadeResultRecorded&&!hasHeartAttempt())return false;
   if(!keepScore){arcadeResultRecorded=false;closeWinStreakPopup()}
   const score=keepScore&&domino?domino.score:{player:0,bot:0};
   const fiveCounts=keepScore&&domino?domino.fiveCounts:{player:0,bot:0};

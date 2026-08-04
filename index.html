@@ -41,6 +41,9 @@
       <div class="online"><i></i><span id="onlineCount">0 персонажей в клубе</span></div>
       <button class="topbar-computer-button" id="computerGameButton" type="button">Игра против компьютера</button>
       <button class="topbar-rules-button" id="rulesMenuButton" type="button">Правила игр</button>
+      <button class="heart-bank-button" id="heartBankButton" type="button" aria-label="Открыть запас сердечек">
+        <span aria-hidden="true">♥</span><b id="heartCompactCount">10/10</b><small>попытки</small>
+      </button>
       <div class="profile">
         <div class="profile-progress"><span class="rating">Рейтинг <b id="rating">1000</b></span><small id="playerLevel">Уровень после 10 партий</small></div>
         <button class="avatar-button" id="customizeButton" aria-label="Открыть анкету игрока">
@@ -58,6 +61,15 @@
           <em>Рекорд: <i id="roomBestStreak">0</i></em>
         </span>
         <span class="room-streak-arrow" aria-hidden="true">›</span>
+      </button>
+      <button class="room-heart-inbox-button" id="heartInboxButton" type="button" aria-label="Открыть просьбы о помощи">
+        <span class="room-heart-inbox-icon" aria-hidden="true">✉</span>
+        <span><small>Помощь игрокам</small><b>Просьбы о сердечках</b></span>
+        <i class="room-heart-inbox-badge hidden" id="heartInboxBadge">0</i>
+      </button>
+      <button class="room-fortune-button" id="fortuneQuickButton" type="button" aria-label="Открыть колесо фортуны">
+        <span class="room-fortune-mini" aria-hidden="true"><i></i></span>
+        <span><small>Бонусные сердечки</small><b>Колесо фортуны</b><em id="fortuneQuickStatus">Можно крутить</em></span>
       </button>
       <div class="new-room-backdrop" aria-hidden="true"></div>
       <div class="new-room-boards" aria-hidden="true">
@@ -624,13 +636,97 @@
       <span class="eyebrow" id="winStreakGame">Серия клуба</span>
       <h2 id="winStreakTitle">Цепочка побед</h2>
       <div class="win-streak-track" id="winStreakTrack" aria-hidden="true"></div>
+      <div class="win-streak-rewards" aria-label="Награды цепочки побед">
+        <span><b>5 побед</b><i>+1 ♥</i></span>
+        <span><b>8 побед</b><i>+3 ♥</i></span>
+        <span><b>10 побед</b><i>Все ♥</i></span>
+      </div>
       <div class="win-streak-score">
         <div><span>Текущая серия</span><b id="winStreakCurrent">0 побед</b></div>
         <div><span>Личный рекорд</span><b id="winStreakBest">0 побед</b></div>
       </div>
+      <strong class="win-streak-reward-notice hidden" id="winStreakRewardNotice"></strong>
       <p id="winStreakMessage">Начните новую победную серию!</p>
       <button class="primary win-streak-continue" id="winStreakContinue" type="button">Продолжить</button>
     </div>
+  </dialog>
+
+  <dialog class="hearts-dialog hidden" id="heartsDialog" aria-labelledby="heartsDialogTitle">
+    <article class="hearts-card">
+      <button class="hearts-close" id="closeHeartsDialog" type="button" aria-label="Закрыть">×</button>
+      <span class="eyebrow">Здоровье игрока · попытки</span>
+      <h2 id="heartsDialogTitle">Ваши сердечки</h2>
+      <div class="heart-count-line"><b id="heartDialogCount">10 из 10</b><span>сердечек</span></div>
+      <div class="heart-track" id="heartTrack" aria-label="Запас попыток"></div>
+      <div class="heart-restore" id="heartRestoreProgress"><i></i></div>
+      <p class="heart-next" id="heartNextRestore">Все попытки восстановлены</p>
+      <p class="heart-notice" id="heartDialogNotice">Каждое поражение расходует одно сердце.</p>
+      <ul class="heart-rules">
+        <li>Всего доступно 10 попыток.</li>
+        <li>Первое сердце восстанавливается за 10 минут.</li>
+        <li>Каждое следующее — за 15 минут, по очереди.</li>
+      </ul>
+      <div class="heart-actions">
+        <button class="primary" id="openHeartFriends" type="button">Попросить у друзей</button>
+        <button class="heart-secondary" id="openHeartShop" type="button">Купить попытки</button>
+      </div>
+      <div class="heart-wallet">Клубные монеты: <b id="heartCoinBalance">200</b> ◉</div>
+    </article>
+  </dialog>
+
+  <dialog class="heart-subdialog hidden" id="heartFriendsDialog" aria-labelledby="heartFriendsTitle">
+    <article>
+      <button class="hearts-close" id="closeHeartFriends" type="button" aria-label="Закрыть">×</button>
+      <span class="eyebrow">Помощь клуба</span>
+      <h2 id="heartFriendsTitle">Попросить попытку</h2>
+      <p>Просьба появится в отдельном ящике помощи слева под цепочкой побед. Друг сможет бесплатно восстановить вам одно сердце — его собственные попытки не расходуются.</p>
+      <div class="heart-friends-head">Друзей онлайн: <b id="heartFriendsOnline">0</b></div>
+      <div class="heart-friends-list" id="heartFriendsList"></div>
+      <button class="primary" id="sendHeartRequest" type="button">Отправить просьбу о сердечке</button>
+    </article>
+  </dialog>
+
+  <dialog class="heart-subdialog heart-inbox-dialog hidden" id="heartInboxDialog" aria-labelledby="heartInboxTitle">
+    <article>
+      <button class="hearts-close" id="closeHeartInbox" type="button" aria-label="Закрыть">×</button>
+      <span class="eyebrow">Клубная взаимопомощь</span>
+      <h2 id="heartInboxTitle">Просьбы о помощи</h2>
+      <p>Отправка сердечка бесплатна и никак не уменьшает ваш собственный запас попыток.</p>
+      <div class="heart-inbox-list" id="heartInboxList"><p>Новых просьб пока нет.</p></div>
+      <button class="primary heart-inbox-send-all hidden" id="heartInboxSendAll" type="button">Отправить сердечки всем</button>
+    </article>
+  </dialog>
+
+  <dialog class="fortune-dialog hidden" id="fortuneWheelDialog" aria-labelledby="fortuneWheelTitle">
+    <article class="fortune-card">
+      <button class="hearts-close" id="closeFortuneWheel" type="button" aria-label="Закрыть">×</button>
+      <span class="eyebrow">Тестовый режим · без таймера</span>
+      <h2 id="fortuneWheelTitle">Колесо фортуны</h2>
+      <p>Выигрыш сразу восстановит выпавшее количество сердечек.</p>
+      <div class="fortune-stage" id="fortuneStage">
+        <i class="fortune-pointer" aria-hidden="true"></i>
+      <div class="fortune-wheel" id="fortuneWheel">
+        <div class="fortune-numbers" id="fortuneNumbers"></div>
+      </div>
+      <span class="fortune-hub" aria-hidden="true">♥</span>
+      </div>
+      <strong class="fortune-result hidden" id="fortuneResult"></strong>
+      <p class="fortune-status" id="fortuneStatus">Колесо готово к вращению.</p>
+      <button class="primary fortune-spin" id="fortuneSpinButton" type="button">Крутить колесо</button>
+    </article>
+  </dialog>
+
+  <dialog class="heart-subdialog hidden" id="heartShopDialog" aria-labelledby="heartShopTitle">
+    <article>
+      <button class="hearts-close" id="closeHeartShop" type="button" aria-label="Закрыть">×</button>
+      <span class="eyebrow">Клубная лавка</span>
+      <h2 id="heartShopTitle">Купить попытки</h2>
+      <div class="heart-packages">
+        <button type="button" data-heart-package="1" data-heart-cost="30"><span>♥</span><b>1 сердце</b><small>30 ◉</small></button>
+        <button type="button" data-heart-package="3" data-heart-cost="75"><span>♥♥♥</span><b>3 сердца</b><small>75 ◉</small></button>
+        <button type="button" data-heart-package="10" data-heart-cost="180"><span>♥ × 10</span><b>Полный запас</b><small>180 ◉</small></button>
+      </div>
+    </article>
   </dialog>
 
   <dialog class="loss-rescue-popup hidden" id="lossRescuePopup" aria-labelledby="lossRescueTitle">

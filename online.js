@@ -11,7 +11,7 @@
   let reconnectTimer;
   let lastMessagesSignature = "";
   let lastTableMessagesSignature = "";
-  let latestSnapshot = {players: [], tables: [], messages: [], invitations: []};
+  let latestSnapshot = {players: [], tables: [], messages: [], invitations: [], heartRequests: []};
   let currentInvitationId = null;
   let currentTableNumber = null;
   let localGuestInitialized = false;
@@ -155,6 +155,49 @@
       box.append(row);
     }
     box.scrollTop = box.scrollHeight;
+  }
+
+  function renderHeartInbox(requests) {
+    const incoming = (requests || []).filter(request => request.requesterId !== sessionId);
+    const badge = document.querySelector("#heartInboxBadge");
+    const button = document.querySelector("#heartInboxButton");
+    const list = document.querySelector("#heartInboxList");
+    const sendAll = document.querySelector("#heartInboxSendAll");
+    if (badge) {
+      badge.textContent = String(incoming.length);
+      badge.classList.toggle("hidden", incoming.length === 0);
+    }
+    button?.classList.toggle("has-requests", incoming.length > 0);
+    if (sendAll) {
+      sendAll.classList.toggle("hidden", incoming.length === 0);
+      sendAll.disabled = false;
+    }
+    if (!list) return;
+    list.replaceChildren();
+    if (!incoming.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "Новых просьб пока нет.";
+      list.append(empty);
+      return;
+    }
+    for (const request of incoming) {
+      const row = document.createElement("div");
+      row.className = "heart-inbox-request";
+      const copy = document.createElement("span");
+      const name = document.createElement("b");
+      const time = document.createElement("small");
+      name.textContent = request.nickname || "Гость";
+      time.textContent = `Просит одно сердечко · ${request.time || "сейчас"}`;
+      copy.append(name,time);
+      const help = document.createElement("button");
+      help.type = "button";
+      help.textContent = "Отправить ♥";
+      help.addEventListener("click",()=>{
+        if(send({type:"heart_gift",targetId:request.requesterId})) help.disabled=true;
+      });
+      row.append(copy,help);
+      list.append(row);
+    }
   }
 
   function renderTableMessages(messages) {
@@ -615,6 +658,7 @@
     updateLookingButton(data.players || []);
     renderMessages(data.messages || [], data.players || []);
     renderTableMessages(data.tableMessages || []);
+    renderHeartInbox(data.heartRequests || []);
     showIncomingInvitation(data.invitations || []);
     const myTable = (data.tables || []).find(table =>
       [table.playerOneId, table.playerTwoId].includes(sessionId)
@@ -650,6 +694,10 @@
         window.receiveOnlineGameAction?.(data.game, data.action);
       } else if (data.type === "room_presence") {
         updateRemotePresence(data);
+      } else if (data.type === "heart_update") {
+        window.applyServerHeartState?.(data.hearts,data.coins,data.message);
+      } else if (data.type === "fortune_result") {
+        window.handleFortuneResult?.(data);
       } else if (data.type === "notice") {
         if (typeof window.toast === "function") window.toast(data.message);
         if (data.message?.startsWith("30 секунд истекли")) {
@@ -749,6 +797,19 @@
       send({type: "invite_reply", invitationId: currentInvitationId, accept: false});
     }
   });
+  document.querySelector("#heartInboxButton")?.addEventListener("click",()=>{
+    renderHeartInbox(latestSnapshot.heartRequests || []);
+    const dialog=document.querySelector("#heartInboxDialog");
+    dialog?.classList.remove("hidden");
+    if(dialog&&!dialog.open)dialog.showModal();
+  });
+  document.querySelector("#closeHeartInbox")?.addEventListener("click",()=>{
+    const dialog=document.querySelector("#heartInboxDialog");
+    if(dialog?.open)dialog.close();dialog?.classList.add("hidden");
+  });
+  document.querySelector("#heartInboxSendAll")?.addEventListener("click",event=>{
+    if(send({type:"heart_gift_all"}))event.currentTarget.disabled=true;
+  });
 
   window.clubOnline = {
     joinTable(tableNumber, game, seatSide) {
@@ -780,6 +841,21 @@
     },
     openSearch(tableNumber = null) {
       return openSearchDialog(tableNumber);
+    },
+    onlinePlayers() {
+      return (latestSnapshot.players || []).filter(player => player.id !== sessionId);
+    },
+    requestHeart() {
+      return send({type:"heart_request"});
+    },
+    giftHeart(targetId) {
+      return send({type:"heart_gift",targetId});
+    },
+    giftHeartAll() {
+      return send({type:"heart_gift_all"});
+    },
+    spinFortune(segments) {
+      return send({type:"fortune_spin",segments});
     },
     updateRoomPresence(presence) {
       return updateRoomPresence(presence);

@@ -1,5 +1,8 @@
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
+const HEART_MAX = 10;
+const HEART_FIRST_RESTORE_MS = 10 * 60 * 1000;
+const HEART_NEXT_RESTORE_MS = 15 * 60 * 1000;
 
 const storedProfileText = localStorage.getItem("quietMoveProfile");
 let storedProfile = null;
@@ -28,6 +31,11 @@ profile.photo ||= "";
 profile.authProvider ||= "";
 profile.winStreak = Math.max(0, Number(profile.winStreak) || 0);
 profile.bestWinStreak = Math.max(profile.winStreak, Number(profile.bestWinStreak) || 0);
+profile.hearts = normalizeHeartState(profile.hearts);
+profile.fortune = normalizeFortuneState(profile.fortune);
+profile.clubCoins = Number.isFinite(Number(profile.clubCoins))
+  ? Math.max(0, Math.round(Number(profile.clubCoins)))
+  : 200;
 const clothesColorUpgrade = {
   "#a44b36": "#c84a42",
   "#315f75": "#3099cb",
@@ -522,6 +530,9 @@ function mergeStoredProfile(savedProfile) {
   profile.games = Array.isArray(profile.games) ? profile.games : [];
   profile.winStreak = Math.max(0, Number(profile.winStreak) || 0);
   profile.bestWinStreak = Math.max(profile.winStreak, Number(profile.bestWinStreak) || 0);
+  profile.hearts = normalizeHeartState(profile.hearts);
+  profile.fortune = normalizeFortuneState(profile.fortune);
+  profile.clubCoins = Math.max(0, Math.round(Number(profile.clubCoins) || 0));
 }
 async function hydrateProfileSession() {
   try {
@@ -556,6 +567,338 @@ async function hydrateProfileSession() {
   }
   return profile;
 }
+let heartTicker = null;
+let lastStreakReward = "";
+let fortuneSegments = [];
+let fortuneRotation = 0;
+let fortuneSpinning = false;
+
+function normalizeHeartState(value) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const current = Math.min(HEART_MAX, Math.max(0, Math.round(Number(source.current ?? HEART_MAX) || 0)));
+  const parsedNext = Date.parse(String(source.nextHeartAt || ""));
+  const nextDurationMs = Number(source.nextDurationMs) === HEART_NEXT_RESTORE_MS
+    ? HEART_NEXT_RESTORE_MS
+    : HEART_FIRST_RESTORE_MS;
+  return {
+    current,
+    nextHeartAt: current < HEART_MAX && Number.isFinite(parsedNext)
+      ? new Date(parsedNext).toISOString()
+      : null,
+    nextDurationMs: current < HEART_MAX ? nextDurationMs : HEART_FIRST_RESTORE_MS
+  };
+}
+
+function normalizeFortuneState(value) {
+  const source=value&&typeof value==="object"&&!Array.isArray(value)?value:{};
+  const parsedNext=Date.parse(String(source.nextSpinAt||""));
+  return {
+    nextSpinAt:Number.isFinite(parsedNext)?new Date(parsedNext).toISOString():null,
+    lastReward:Math.min(6,Math.max(0,Math.round(Number(source.lastReward)||0)))
+  };
+}
+
+function shuffledFortuneSegments() {
+  const values=[1,2,3,4,5,6,1,2,3,4,5,6];
+  for(let index=values.length-1;index>0;index-=1){
+    const swapIndex=Math.floor(Math.random()*(index+1));
+    [values[index],values[swapIndex]]=[values[swapIndex],values[index]];
+  }
+  return values;
+}
+
+function renderFortuneSegments(forceNew=false) {
+  if(forceNew||fortuneSegments.length!==12)fortuneSegments=shuffledFortuneSegments();
+  const numbers=$("#fortuneNumbers");
+  if(!numbers)return;
+  numbers.style.setProperty("--fortune-counter-rotation",`${-fortuneRotation}deg`);
+  numbers.innerHTML=fortuneSegments.map((value,index)=>
+    `<i class="fortune-number" style="--fortune-index:${index}" aria-label="${value} сердечек">${value}</i>`
+  ).join("");
+}
+
+function fortuneCountdownLabel(milliseconds) {
+  const totalSeconds=Math.max(0,Math.ceil(milliseconds/1000));
+  const hours=Math.floor(totalSeconds/3600);
+  const minutes=Math.floor((totalSeconds%3600)/60);
+  const secondsPart=totalSeconds%60;
+  return `${String(hours).padStart(2,"0")}:${String(minutes).padStart(2,"0")}:${String(secondsPart).padStart(2,"0")}`;
+}
+
+function updateFortuneUI() {
+  profile.fortune=normalizeFortuneState(profile.fortune);
+  const nextAt=Date.parse(String(profile.fortune.nextSpinAt||""));
+  const remaining=Number.isFinite(nextAt)?Math.max(0,nextAt-Date.now()):0;
+  const available=remaining<=0;
+  const quick=$("#fortuneQuickButton"),quickStatus=$("#fortuneQuickStatus");
+  const button=$("#fortuneSpinButton"),status=$("#fortuneStatus");
+  quick?.classList.toggle("on-cooldown",!available);
+  if(quickStatus)quickStatus.textContent=available?"Можно крутить":`Через ${fortuneCountdownLabel(remaining)}`;
+  if(button){
+    button.disabled=fortuneSpinning||!available;
+    button.textContent=fortuneSpinning?"Колесо вращается…":available?"Крутить колесо":`Доступно через ${fortuneCountdownLabel(remaining)}`;
+  }
+  if(status&&!fortuneSpinning&&!available)status.textContent=`Следующее вращение через ${fortuneCountdownLabel(remaining)}.`;
+  if(status&&!fortuneSpinning&&available&&!$("#fortuneResult")?.textContent)status.textContent="Колесо готово к вращению.";
+}
+
+function openFortuneWheel() {
+  profile.fortune=normalizeFortuneState(profile.fortune);
+  const nextAt=Date.parse(String(profile.fortune.nextSpinAt||""));
+  renderFortuneSegments(!Number.isFinite(nextAt)||nextAt<=Date.now());
+  const result=$("#fortuneResult");
+  result.textContent="";result.classList.add("hidden");
+  const dialog=$("#fortuneWheelDialog");
+  dialog.classList.remove("hidden");
+  if(!dialog.open)dialog.showModal();
+  updateFortuneUI();
+}
+
+function closeFortuneWheel() {
+  if(fortuneSpinning)return;
+  const dialog=$("#fortuneWheelDialog");
+  if(dialog?.open)dialog.close();
+  dialog?.classList.add("hidden");
+}
+
+function spinFortuneWheel() {
+  if(fortuneSpinning)return;
+  updateFortuneUI();
+  const nextAt=Date.parse(String(profile.fortune.nextSpinAt||""));
+  if(Number.isFinite(nextAt)&&nextAt>Date.now())return;
+  renderFortuneSegments(false);
+  fortuneSpinning=true;
+  $("#fortuneResult").textContent="";$("#fortuneResult").classList.add("hidden");
+  $("#fortuneStatus").textContent="Колесо набирает скорость…";
+  $("#fortuneStage").classList.add("spinning");
+  updateFortuneUI();
+  if(!window.clubOnline?.spinFortune?.(fortuneSegments)){
+    fortuneSpinning=false;$("#fortuneStage").classList.remove("spinning");
+    updateFortuneUI();toast("Нет соединения с клубом. Попробуйте ещё раз.");
+  }
+}
+
+window.handleFortuneResult=data=>{
+  if(!data?.allowed){
+    fortuneSpinning=false;$("#fortuneStage")?.classList.remove("spinning");
+    profile.fortune=normalizeFortuneState({nextSpinAt:data?.nextSpinAt,lastReward:profile.fortune.lastReward});
+    saveProfile();updateFortuneUI();toast("Колесо можно крутить только один раз в 12 часов.");return;
+  }
+  const winningIndex=Math.min(11,Math.max(0,Math.round(Number(data.winningIndex)||0)));
+  const currentNormalized=((fortuneRotation%360)+360)%360;
+  const targetNormalized=(360-winningIndex*30)%360;
+  fortuneRotation+=360*7+((targetNormalized-currentNormalized+360)%360);
+  const wheel=$("#fortuneWheel");
+  wheel.style.transform=`rotate(${fortuneRotation}deg)`;
+  $("#fortuneNumbers")?.style.setProperty("--fortune-counter-rotation",`${-fortuneRotation}deg`);
+  $("#fortuneStatus").textContent="Секторы переливаются — ждём остановки под стрелкой…";
+  window.setTimeout(()=>{
+    profile.hearts=normalizeHeartState(data.hearts);
+    profile.fortune=normalizeFortuneState({nextSpinAt:data.nextSpinAt,lastReward:data.reward});
+    if(Number.isFinite(Number(data.coins)))profile.clubCoins=Math.max(0,Math.round(Number(data.coins)));
+    saveProfile();
+    fortuneSpinning=false;
+    $("#fortuneStage").classList.remove("spinning");
+    const reward=Math.min(6,Math.max(1,Math.round(Number(data.reward)||1)));
+    const added=Math.max(0,Math.round(Number(data.added)||0));
+    const result=$("#fortuneResult");
+    result.textContent=added===reward
+      ?`Выпало ${reward} ♥ — сердечки восстановлены!`
+      :added>0
+        ?`Выпало ${reward} ♥ — восстановлено ${added}, запас заполнен.`
+        :`Выпало ${reward} ♥ — запас сердец уже полный.`;
+    result.classList.remove("hidden");
+    $("#fortuneStatus").textContent=data.nextSpinAt
+      ?"Награда сохранена. Возвращайтесь через 12 часов."
+      :"Тестовый режим: колесо снова доступно.";
+    updateHeartsUI();updateFortuneUI();
+  },5500);
+};
+
+function settleHeartRegeneration(persist = false) {
+  profile.hearts = normalizeHeartState(profile.hearts);
+  const state = profile.hearts;
+  const now = Date.now();
+  let changed = false;
+  if (state.current < HEART_MAX && !state.nextHeartAt) {
+    state.nextDurationMs = HEART_FIRST_RESTORE_MS;
+    state.nextHeartAt = new Date(now + state.nextDurationMs).toISOString();
+    changed = true;
+  }
+  let nextAt = Date.parse(String(state.nextHeartAt || ""));
+  while (state.current < HEART_MAX && Number.isFinite(nextAt) && now >= nextAt) {
+    state.current += 1;
+    changed = true;
+    if (state.current >= HEART_MAX) {
+      state.current = HEART_MAX;
+      state.nextHeartAt = null;
+      state.nextDurationMs = HEART_FIRST_RESTORE_MS;
+      break;
+    }
+    state.nextDurationMs = HEART_NEXT_RESTORE_MS;
+    nextAt += HEART_NEXT_RESTORE_MS;
+    state.nextHeartAt = new Date(nextAt).toISOString();
+  }
+  if (changed) {
+    localStorage.setItem("quietMoveProfile", JSON.stringify(profile));
+    if (persist) saveProfile();
+  }
+  return changed;
+}
+
+function heartTimeLabel(milliseconds) {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const secondsPart = totalSeconds % 60;
+  return `${String(minutes).padStart(2,"0")}:${String(secondsPart).padStart(2,"0")}`;
+}
+
+function updateHeartsUI() {
+  settleHeartRegeneration(true);
+  const state = profile.hearts;
+  const compactCount = $("#heartCompactCount");
+  const dialogCount = $("#heartDialogCount");
+  const track = $("#heartTrack");
+  const next = $("#heartNextRestore");
+  const progress = $("#heartRestoreProgress");
+  const coins = $("#heartCoinBalance");
+  if (compactCount) compactCount.textContent = `${state.current}/${HEART_MAX}`;
+  if (dialogCount) dialogCount.textContent = `${state.current} из ${HEART_MAX}`;
+  if (coins) coins.textContent = String(profile.clubCoins);
+  if (track) {
+    track.innerHTML = Array.from({length:HEART_MAX},(_,index)=>
+      `<i class="heart-slot ${index < state.current ? "filled" : ""}" aria-label="${index < state.current ? "Сердце заполнено" : "Сердце пусто"}">♥</i>`
+    ).join("");
+  }
+  const nextAt = Date.parse(String(state.nextHeartAt || ""));
+  if (state.current >= HEART_MAX || !Number.isFinite(nextAt)) {
+    if (next) next.textContent = "Все попытки восстановлены";
+    if (progress) progress.style.setProperty("--heart-progress", "100%");
+  } else {
+    const remaining = Math.max(0, nextAt - Date.now());
+    const duration = Math.max(1, Number(state.nextDurationMs) || HEART_FIRST_RESTORE_MS);
+    const percent = Math.min(100, Math.max(0, (1 - remaining / duration) * 100));
+    if (next) next.textContent = `Следующее сердце через ${heartTimeLabel(remaining)}`;
+    if (progress) progress.style.setProperty("--heart-progress", `${percent}%`);
+  }
+  $("#heartBankButton")?.classList.toggle("is-low",state.current <= 2);
+  $("#heartBankButton")?.classList.toggle("is-empty",state.current === 0);
+  updateFortuneUI();
+}
+
+function startHeartTicker() {
+  if (heartTicker) return;
+  heartTicker = window.setInterval(updateHeartsUI, 1000);
+  updateHeartsUI();
+}
+
+function openHeartsDialog(message = "") {
+  updateHeartsUI();
+  const dialog = $("#heartsDialog");
+  if (!dialog) return;
+  const notice = $("#heartDialogNotice");
+  notice.textContent = message || (profile.hearts.current
+    ? "Каждое поражение расходует одно сердце."
+    : "Сердца закончились. Дождитесь восстановления или получите попытку другим способом.");
+  dialog.classList.remove("hidden");
+  if (!dialog.open) dialog.showModal();
+}
+
+function closeHeartsDialog() {
+  const dialog = $("#heartsDialog");
+  if (dialog?.open) dialog.close();
+  dialog?.classList.add("hidden");
+}
+
+function hasHeartAttempt() {
+  settleHeartRegeneration(true);
+  if (profile.hearts.current > 0) return true;
+  openHeartsDialog("Новая партия станет доступна после восстановления хотя бы одного сердца.");
+  return false;
+}
+
+function spendHeart(reason = "Поражение") {
+  settleHeartRegeneration(false);
+  if (profile.hearts.current <= 0) {
+    updateHeartsUI();
+    return false;
+  }
+  profile.hearts.current -= 1;
+  if (!profile.hearts.nextHeartAt) {
+    profile.hearts.nextDurationMs = HEART_FIRST_RESTORE_MS;
+    profile.hearts.nextHeartAt = new Date(Date.now() + HEART_FIRST_RESTORE_MS).toISOString();
+  }
+  saveProfile();
+  updateHeartsUI();
+  toast(`${reason}: −1 сердце. Осталось ${profile.hearts.current}.`);
+  return true;
+}
+
+function addHearts(amount, reason = "Получена попытка") {
+  settleHeartRegeneration(false);
+  const before = profile.hearts.current;
+  profile.hearts.current = Math.min(HEART_MAX, before + Math.max(0, Math.round(Number(amount) || 0)));
+  const added = profile.hearts.current - before;
+  if (profile.hearts.current >= HEART_MAX) {
+    profile.hearts.nextHeartAt = null;
+    profile.hearts.nextDurationMs = HEART_FIRST_RESTORE_MS;
+  }
+  if (added > 0) {
+    saveProfile();
+    toast(`${reason}: +${added} ${added === 1 ? "сердце" : "сердца"}.`);
+  }
+  updateHeartsUI();
+  return added;
+}
+
+function refillAllHearts(reason = "Все попытки восстановлены") {
+  settleHeartRegeneration(false);
+  const restored = HEART_MAX - profile.hearts.current;
+  profile.hearts.current = HEART_MAX;
+  profile.hearts.nextHeartAt = null;
+  profile.hearts.nextDurationMs = HEART_FIRST_RESTORE_MS;
+  saveProfile();
+  updateHeartsUI();
+  toast(restored ? `${reason}: +${restored} сердец.` : `${reason}. Запас уже полный.`);
+  return restored;
+}
+
+function buyHeartPackage(amount, cost) {
+  settleHeartRegeneration(false);
+  if (profile.hearts.current >= HEART_MAX) {
+    toast("Все десять сердец уже заполнены.");
+    return;
+  }
+  if (profile.clubCoins < cost) {
+    toast("Недостаточно клубных монет.");
+    return;
+  }
+  profile.clubCoins -= cost;
+  const added = addHearts(amount, "Покупка попыток");
+  if (!added) profile.clubCoins += cost;
+  saveProfile();
+  updateHeartsUI();
+}
+
+function renderHeartFriends() {
+  const list = $("#heartFriendsList");
+  if (!list) return;
+  const friends = window.clubOnline?.onlinePlayers?.() || [];
+  list.innerHTML = friends.length
+    ? friends.map(player=>`<span><i></i><b>${escapeHtml(String(player.nickname || "Гость"))}</b><small>в клубе</small></span>`).join("")
+    : '<p>Других игроков сейчас нет в клубе. Просьба останется в ящике помощи и дождётся ближайшего друга.</p>';
+  $("#heartFriendsOnline").textContent = String(friends.length);
+}
+
+window.applyServerHeartState = (hearts, coins, message = "") => {
+  profile.hearts = normalizeHeartState(hearts);
+  if (Number.isFinite(Number(coins))) profile.clubCoins = Math.max(0, Math.round(Number(coins)));
+  saveProfile();
+  updateHeartsUI();
+  if (message) toast(message);
+};
+window.openHeartsDialog = openHeartsDialog;
+
 function victoryCountLabel(count) {
   const mod100=count%100,mod10=count%10;
   const word=mod100>=11&&mod100<=14?"побед":mod10===1?"победа":mod10>=2&&mod10<=4?"победы":"побед";
@@ -581,6 +924,9 @@ function showWinStreakPopup(outcome,previousStreak,gameLabel) {
   ).join("");
   $("#winStreakCurrent").textContent=victoryCountLabel(profile.winStreak);
   $("#winStreakBest").textContent=victoryCountLabel(profile.bestWinStreak);
+  const rewardNotice=$("#winStreakRewardNotice");
+  rewardNotice.textContent=lastStreakReward;
+  rewardNotice.classList.toggle("hidden",!lastStreakReward);
   if(outcome==="overview"){
     $("#winStreakTitle").textContent="Ваша цепочка побед";
     $("#winStreakMessage").textContent=profile.winStreak
@@ -610,9 +956,20 @@ function showWinStreakPopup(outcome,previousStreak,gameLabel) {
 }
 function recordWinStreak(outcome,gameLabel) {
   const previousStreak=profile.winStreak;
+  lastStreakReward="";
   if(outcome==="win")profile.winStreak++;
   else if(outcome==="loss")profile.winStreak=0;
   profile.bestWinStreak=Math.max(profile.bestWinStreak,profile.winStreak);
+  if(outcome==="win"&&profile.winStreak===5){
+    const added=addHearts(1,"Награда за 5 побед");
+    lastStreakReward=added?"Награда за 5 побед: +1 сердце":"Награда за 5 побед получена — запас сердец уже полный";
+  }else if(outcome==="win"&&profile.winStreak===8){
+    const added=addHearts(3,"Награда за 8 побед");
+    lastStreakReward=added?`Награда за 8 побед: +${added} ${added===1?"сердце":"сердца"}`:"Награда за 8 побед получена — запас сердец уже полный";
+  }else if(outcome==="win"&&profile.winStreak===10){
+    const restored=refillAllHearts("Цепочка из 10 побед пройдена");
+    lastStreakReward=restored?`Цепочка пройдена: восстановлены все 10 сердец (+${restored})`:"Цепочка пройдена: все 10 сердец уже заполнены";
+  }
   saveProfile();updateWinStreakQuickButton();
   setTimeout(()=>showWinStreakPopup(outcome,previousStreak,gameLabel),90);
 }
@@ -704,7 +1061,53 @@ $("#winStreakPopup").addEventListener("cancel",event=>{event.preventDefault();cl
 $("#winStreakClose").addEventListener("click",closeWinStreakPopup);
 $("#winStreakContinue").addEventListener("click",closeWinStreakPopup);
 $("#streakQuickButton").addEventListener("click",()=>{
+  lastStreakReward="";
   showWinStreakPopup("overview",profile.winStreak,"Клуб настольных игр");
+});
+$("#heartBankButton")?.addEventListener("click",()=>openHeartsDialog());
+$("#closeHeartsDialog")?.addEventListener("click",closeHeartsDialog);
+$("#heartsDialog")?.addEventListener("cancel",event=>{event.preventDefault();closeHeartsDialog()});
+$("#openHeartFriends")?.addEventListener("click",()=>{
+  renderHeartFriends();
+  const dialog=$("#heartFriendsDialog");
+  dialog.classList.remove("hidden");
+  if(!dialog.open)dialog.showModal();
+});
+$("#closeHeartFriends")?.addEventListener("click",()=>{
+  const dialog=$("#heartFriendsDialog");
+  if(dialog.open)dialog.close();dialog.classList.add("hidden");
+});
+$("#sendHeartRequest")?.addEventListener("click",async()=>{
+  const button=$("#sendHeartRequest");button.disabled=true;
+  settleHeartRegeneration(true);
+  if(profile.hearts.current>=HEART_MAX){
+    toast("Все десять сердец уже заполнены — помощь пока не нужна.");button.disabled=false;return;
+  }
+  await saveProfile();
+  const sent=window.clubOnline?.requestHeart?.();
+  toast(sent?"Просьба появилась в ящике помощи у других игроков.":"Подключитесь к клубу, чтобы попросить друзей.");
+  if(!sent)button.disabled=false;
+  else window.setTimeout(()=>{if(button)button.disabled=false},60000);
+});
+$("#openHeartShop")?.addEventListener("click",()=>{
+  updateHeartsUI();
+  const dialog=$("#heartShopDialog");
+  dialog.classList.remove("hidden");
+  if(!dialog.open)dialog.showModal();
+});
+$("#closeHeartShop")?.addEventListener("click",()=>{
+  const dialog=$("#heartShopDialog");
+  if(dialog.open)dialog.close();dialog.classList.add("hidden");
+});
+$$('[data-heart-package]').forEach(button=>button.addEventListener("click",()=>{
+  buyHeartPackage(Number(button.dataset.heartPackage),Number(button.dataset.heartCost));
+}));
+$("#fortuneQuickButton")?.addEventListener("click",openFortuneWheel);
+$("#closeFortuneWheel")?.addEventListener("click",closeFortuneWheel);
+$("#fortuneSpinButton")?.addEventListener("click",spinFortuneWheel);
+$("#fortuneWheelDialog")?.addEventListener("cancel",event=>{
+  event.preventDefault();
+  if(!fortuneSpinning)closeFortuneWheel();
 });
 document.addEventListener("keydown",event=>{
   if(event.key==="Escape"&&(
@@ -749,6 +1152,7 @@ function applyProfile() {
   levelLabel.classList.toggle("has-level",Boolean(playerTier));
   updateDifficultyUI();
   updateWinStreakQuickButton();
+  updateHeartsUI();
   renderHistory();
   renderStandings();
 }
@@ -2534,6 +2938,7 @@ function finishGame(result,skipLossRescue=false){
   if(firstResult){
     delta=win?18:-12;profile.rating=Math.max(0,profile.rating+delta);
     profile.games.push({result:win?"Победа":"Поражение",opponent:opponentName(),date:new Date().toLocaleDateString("ru-RU"),delta});
+    if(!win)spendHeart("Поражение в партии");
     recordTournamentResult(win?2:0);
     saveProfile();applyProfile();checkersResultRecorded=true;
     recordWinStreak(win?"win":"loss",currentGameMode==="giveaway"?"Поддавки":"Русские шашки");
@@ -2554,6 +2959,7 @@ function openCheckersAnalysis(){
   $("#gameTip").textContent="Используйте «Шаг назад» и выберите другое продолжение. Первый результат уже сохранён.";
 }
 function startGame(tableNo,mode="checkers"){
+  if(!hasHeartAttempt())return false;
   currentTableNo=String(tableNo);currentGameMode=mode;clearCheckersMoveAnimation();hideResultOverlay();closeWinStreakPopup();cancelLossRescue();setActiveOpponent(activeOpponentId);updateDifficultyUI();cancelCoinToss();
   const onlineMatch=onlineHumanMatch(mode);
   if(!onlineMatch)window.clubOnline?.cancelSearch();
@@ -2604,6 +3010,6 @@ $("#historyBack").addEventListener("click",()=>stepCheckersHistory(-1));
 $("#historyForward").addEventListener("click",()=>stepCheckersHistory(1));
 $("#soundButton").addEventListener("click",()=>{soundOn=!soundOn;$("#soundButton").textContent=`Звук: ${soundOn?"вкл.":"выкл."}`;if(soundOn)beep(400)});
 
-applyProfile(); detectTable();
+applyProfile(); startHeartTicker(); detectTable();
 window.setInterval(renderPlayerProfile,60000);
 window.profileSessionReady = hydrateProfileSession();
