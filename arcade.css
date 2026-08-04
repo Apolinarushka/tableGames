@@ -18,6 +18,7 @@
 .arcade-stage{max-width:1180px;margin:auto;display:grid;grid-template-columns:minmax(520px,820px) 280px;gap:20px;align-items:start}
 .arcade-side-column{display:grid;gap:14px;align-content:start}
 .arcade-board{min-height:600px;border:10px solid #53321d;border-radius:8px;background:#b88b58;box-shadow:inset 0 0 0 3px #d4a978,0 24px 65px #0009;overflow:auto}
+.arcade-moving-piece{position:fixed!important;z-index:5000!important;margin:0!important;pointer-events:none!important;transition:none!important;transform-origin:center}.arcade-piece-arriving{opacity:0!important}
 .arcade-board.grid-board{display:grid;grid-template-columns:repeat(8,1fr);aspect-ratio:1;min-height:0}
 .arcade-cell{position:relative;border:0;display:grid;place-items:center;font-size:clamp(25px,5vw,50px);padding:0;cursor:pointer}.arcade-cell.light{background:#d8b783}.arcade-cell.dark{background:#6d432a}.arcade-cell.selected{box-shadow:inset 0 0 0 5px #f3d36c}.arcade-cell.legal:after{content:"";position:absolute;width:24%;height:24%;border-radius:50%;background:#f5df7dcc;box-shadow:0 0 0 4px #2b1d1244}.arcade-cell.last{box-shadow:inset 0 0 0 4px #88b78699}
 .corner-piece{width:62%;height:62%;border-radius:50%;border:3px solid;box-shadow:inset 0 6px #ffffff38,inset 0 -7px #0005,0 5px 5px #0005}.corner-piece.player{background:#e6d4ad;border-color:#fff0ce}.corner-piece.bot{background:#293636;border-color:#526261}

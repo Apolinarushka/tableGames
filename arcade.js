@@ -4,6 +4,44 @@ let arcadeTableNo="01",arcadeMode=null,arcadeOver=false,arcadeTimer=null,arcadeR
 let arcadeTimeline=[],arcadeTimelineIndex=-1,arcadeHistoryReview=false,arcadeAnalysisMode=false;
 let arcadeResultRecorded=false;
 let computerGameMenu=false;
+let arcadeAnimating=false,pendingArcadeMove=null,arcadeAnimationRun=0;
+
+function captureArcadeMover(selector){
+  const node=document.querySelector(selector);
+  if(!node)return null;
+  return{node:node.cloneNode(true),rect:node.getBoundingClientRect()};
+}
+function queueArcadeMove(snapshot,destinationSelector){
+  if(!snapshot)return;
+  pendingArcadeMove={...snapshot,destinationSelector};
+}
+function clearArcadeMoveAnimation(){
+  arcadeAnimationRun++;arcadeAnimating=false;pendingArcadeMove=null;
+  document.querySelectorAll(".arcade-moving-piece").forEach(node=>node.remove());
+  document.querySelectorAll(".arcade-piece-arriving").forEach(node=>node.classList.remove("arcade-piece-arriving"));
+}
+function playPendingArcadeMove(){
+  const pending=pendingArcadeMove;pendingArcadeMove=null;
+  if(!pending)return;
+  const destination=document.querySelector(pending.destinationSelector);
+  if(!destination)return;
+  const run=++arcadeAnimationRun,end=destination.getBoundingClientRect(),mover=pending.node;
+  arcadeAnimating=true;destination.classList.add("arcade-piece-arriving");
+  mover.classList.add("arcade-moving-piece");
+  Object.assign(mover.style,{left:`${pending.rect.left}px`,top:`${pending.rect.top}px`,width:`${pending.rect.width}px`,height:`${pending.rect.height}px`});
+  document.body.appendChild(mover);
+  const dx=end.left-pending.rect.left,dy=end.top-pending.rect.top;
+  const travel=mover.animate([
+    {transform:"translate3d(0,0,0) scale(1)",offset:0},
+    {transform:`translate3d(${dx*.5}px,${dy*.5-10}px,0) scale(1.035)`,offset:.5},
+    {transform:`translate3d(${dx}px,${dy}px,0) scale(1)`,offset:1}
+  ],{duration:window.matchMedia("(prefers-reduced-motion: reduce)").matches?1:680,easing:"cubic-bezier(.22,.72,.2,1)",fill:"forwards"});
+  const finish=()=>{
+    mover.remove();destination.classList.remove("arcade-piece-arriving");
+    if(run===arcadeAnimationRun)arcadeAnimating=false;
+  };
+  travel.onfinish=finish;travel.oncancel=finish;
+}
 
 function cloneArcadeState(value){
   return typeof structuredClone==="function"?structuredClone(value):JSON.parse(JSON.stringify(value));
@@ -48,7 +86,7 @@ function resetArcadeTimeline(){
   arcadeTimeline=[];arcadeTimelineIndex=-1;arcadeHistoryReview=false;arcadeAnalysisMode=false;pushArcadePosition();
 }
 function restoreArcadePosition(snapshot){
-  clearTimeout(arcadeTimer);arcadeTimer=null;hideArcadeResult();arcadeOver=false;setArcadeActions([]);
+  clearTimeout(arcadeTimer);arcadeTimer=null;clearArcadeMoveAnimation();hideArcadeResult();arcadeOver=false;setArcadeActions([]);
   if(snapshot.mode==="corners"){
     cornerBoard=cloneArcadeState(snapshot.board);cornerTurn=snapshot.turn;
     cornerSelected=cloneArcadeState(snapshot.selected);cornerChain=cloneArcadeState(snapshot.chain);cornerLast=cloneArcadeState(snapshot.last);
@@ -115,9 +153,9 @@ function hideArcadeResult(){
   overlay.classList.remove("is-win","is-loss","is-draw");
   arcadeRestartAction=null;
 }
-function cleanupArcade(){clearTimeout(arcadeTimer);arcadeTimer=null;arcadeOver=true;pendingArcadeOnlineActions.length=0;hideArcadeResult();closeWinStreakPopup();cancelLossRescue();clearArcadeTimeline();cancelCoinToss();document.querySelector(".arcade-shell")?.classList.remove("arcade-pending-toss");arcadeEl("arcadeMarketSlot").classList.add("hidden");arcadeEl("arcadeMarketSlot").innerHTML=""}
+function cleanupArcade(){clearTimeout(arcadeTimer);arcadeTimer=null;arcadeOver=true;pendingArcadeOnlineActions.length=0;clearArcadeMoveAnimation();hideArcadeResult();closeWinStreakPopup();cancelLossRescue();clearArcadeTimeline();cancelCoinToss();document.querySelector(".arcade-shell")?.classList.remove("arcade-pending-toss");arcadeEl("arcadeMarketSlot").classList.add("hidden");arcadeEl("arcadeMarketSlot").innerHTML=""}
 function openArcade(mode){
-  arcadeMode=mode;currentGameMode=mode;arcadeOver=false;hideArcadeResult();clearArcadeTimeline();
+  arcadeMode=mode;currentGameMode=mode;arcadeOver=false;clearArcadeMoveAnimation();hideArcadeResult();clearArcadeTimeline();
   if(!onlineHumanMatch(mode))window.clubOnline?.cancelSearch();
   if(!computerGameMenu)window.clubOnline?.joinTable(arcadeTableNo,mode);
   arcadeEl("arcadePlayerLabel").textContent="Вы";
@@ -262,6 +300,7 @@ function renderCorners(){
   const legal=cornerSelected?cornerMoves(...cornerSelected,Boolean(cornerChain)):[];
   for(let r=0;r<8;r++)for(let c=0;c<8;c++){
     const cell=document.createElement("button");cell.className=`arcade-cell ${(r+c)%2?"dark":"light"}`;
+    cell.dataset.r=String(r);cell.dataset.c=String(c);
     if(sameCell([r,c],cornerSelected))cell.classList.add("selected");
     if(sameCell([r,c],cornerLast))cell.classList.add("last");
     if(legal.some(move=>sameCell(move.to,[r,c])))cell.classList.add("legal");
@@ -269,9 +308,10 @@ function renderCorners(){
     cell.addEventListener("click",()=>cornerClick(r,c));root.appendChild(cell);
   }
   arcadeEl("arcadeStatus").textContent=cornerTurn==="player"?"Ваш ход":`${opponentName()} думает…`;
+  playPendingArcadeMove();
 }
 function cornerClick(r,c){
-  if(arcadeOver||cornerTurn!=="player")return;
+  if(arcadeOver||cornerTurn!=="player"||arcadeAnimating)return;
   if(cornerSelected){
     const move=cornerMoves(...cornerSelected,Boolean(cornerChain)).find(item=>sameCell(item.to,[r,c]));
     if(move){beginArcadeHistoryBranch();cornerApply(cornerSelected,move.to);cornerLast=move.to;
@@ -284,7 +324,18 @@ function cornerClick(r,c){
   else cornerSelected=null;
   renderCorners();
 }
-function cornerApply(from,to,state=cornerBoard){state[to[0]][to[1]]=state[from[0]][from[1]];state[from[0]][from[1]]=null}
+function cornerApply(from,to,state=cornerBoard){
+  if(state===cornerBoard){
+    const destinationSelector=`.grid-board .arcade-cell[data-r="${to[0]}"][data-c="${to[1]}"] .corner-piece`;
+    if(!pendingArcadeMove){
+      queueArcadeMove(
+        captureArcadeMover(`.grid-board .arcade-cell[data-r="${from[0]}"][data-c="${from[1]}"] .corner-piece`),
+        destinationSelector
+      );
+    }else pendingArcadeMove.destinationSelector=destinationSelector;
+  }
+  state[to[0]][to[1]]=state[from[0]][from[1]];state[from[0]][from[1]]=null
+}
 function cornerPositionScore(state){
   let botDistance=0,playerDistance=0;
   for(let r=0;r<8;r++)for(let c=0;c<8;c++){
@@ -328,6 +379,7 @@ function endCornerTurn(){
 }
 function cornerBotMove(){
   if(arcadeOver)return;
+  if(arcadeAnimating){arcadeTimer=setTimeout(cornerBotMove,120);return}
   const level=opponentLevelForMode("corners");
   const candidates=[];
   for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(cornerBoard[r][c]==="bot"){
@@ -451,6 +503,7 @@ function renderChess(){
   for(let vr=0;vr<8;vr++)for(let vc=0;vc<8;vc++){
     const r=chessPlayerColor==="white"?vr:7-vr,c=chessPlayerColor==="white"?vc:7-vc;
     const cell=document.createElement("button");cell.className=`arcade-cell ${(r+c)%2?"dark":"light"}`;
+    cell.dataset.r=String(r);cell.dataset.c=String(c);
     if(sameCell([r,c],chessSelected))cell.classList.add("selected");if(chessLastMove&&(sameCell([r,c],chessLastMove.from)||sameCell([r,c],chessLastMove.to)))cell.classList.add("last");
     if(legal.some(move=>sameCell(move.to,[r,c])))cell.classList.add("legal");
     const piece=chessBoard[r][c];if(piece)cell.innerHTML=`<span class="chess-piece ${piece.color}">${chessSymbols[piece.color][piece.type]}</span>`;
@@ -466,9 +519,10 @@ function renderChess(){
   );
   const counts=chessBoard.flat().reduce((a,p)=>{if(p)a[p.color]++;return a},{white:0,black:0});arcadeEl("arcadePlayerScore").textContent=counts[chessPlayerColor];arcadeEl("arcadeBotScore").textContent=counts[chessBotColor];
   arcadeEl("arcadeStatus").textContent=chessTurn===chessPlayerColor?(chessInCheck(chessPlayerColor,chessBoard)?"Шах! Ваш ход":"Ваш ход"):`${opponentName()} думает…`;
+  playPendingArcadeMove();
 }
 function chessClick(r,c){
-  if(arcadeOver||chessTurn!==chessPlayerColor)return;const legal=chessLegal(chessPlayerColor);
+  if(arcadeOver||chessTurn!==chessPlayerColor||arcadeAnimating)return;const legal=chessLegal(chessPlayerColor);
   if(chessSelected){const move=legal.find(item=>sameCell(item.from,chessSelected)&&sameCell(item.to,[r,c]));if(move){
     if(move.promotion){
       arcadeEl("arcadeStatus").textContent="Выберите фигуру для превращения";
@@ -483,6 +537,10 @@ function chessClick(r,c){
 function playChessMove(move,source="local"){
   beginArcadeHistoryBranch();
   const piece=chessBoard[move.from[0]][move.from[1]],isCapture=Boolean(chessBoard[move.to[0]][move.to[1]]||move.enPassant);
+  queueArcadeMove(
+    captureArcadeMover(`.chess-grid .arcade-cell[data-r="${move.from[0]}"][data-c="${move.from[1]}"] .chess-piece`),
+    `.chess-grid .arcade-cell[data-r="${move.to[0]}"][data-c="${move.to[1]}"] .chess-piece`
+  );
   if(source==="local"&&piece.color===chessPlayerColor&&onlineHumanMatch("chess")){
     sendOnlineGameAction({kind:"chess_move",move:cloneArcadeState(move)});
   }
@@ -502,6 +560,7 @@ function playChessMove(move,source="local"){
 function chessValue(state){const values={p:100,n:320,b:330,r:500,q:900,k:20000};return state.flat().reduce((sum,p)=>sum+(p?(p.color===chessBotColor?1:-1)*values[p.type]:0),0)}
 function chessBotMove(){
   if(arcadeOver||chessTurn!==chessBotColor)return;
+  if(arcadeAnimating){arcadeTimer=setTimeout(chessBotMove,120);return}
   const moves=chessLegal(chessBotColor),level=opponentLevelForMode("chess");let best=null,bestScore=-Infinity;
   if(level==="A1")best=moves[Math.floor(Math.random()*moves.length)];
   for(const move of level==="A1"?[]:moves){
@@ -550,11 +609,22 @@ function applyOnlineCornersAction(action){
   }
   const source=action.board;
   if(!Array.isArray(source)||source.length!==8)return;
-  cornerBoard=Array.from({length:8},(_,r)=>Array.from({length:8},(_,c)=>{
+  const nextBoard=Array.from({length:8},(_,r)=>Array.from({length:8},(_,c)=>{
     const value=source[7-r]?.[7-c];
     return value==="player"?"bot":value==="bot"?"player":null;
   }));
-  cornerSelected=null;cornerChain=null;cornerLast=null;
+  const movedFrom=[],movedTo=[];
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    if(cornerBoard[r][c]==="bot"&&nextBoard[r][c]!=="bot")movedFrom.push([r,c]);
+    if(cornerBoard[r][c]!=="bot"&&nextBoard[r][c]==="bot")movedTo.push([r,c]);
+  }
+  const remoteFrom=movedFrom[0],remoteTo=movedTo.at(-1);
+  if(remoteFrom&&remoteTo)queueArcadeMove(
+    captureArcadeMover(`.grid-board .arcade-cell[data-r="${remoteFrom[0]}"][data-c="${remoteFrom[1]}"] .corner-piece`),
+    `.grid-board .arcade-cell[data-r="${remoteTo[0]}"][data-c="${remoteTo[1]}"] .corner-piece`
+  );
+  cornerBoard=nextBoard;
+  cornerSelected=null;cornerChain=null;cornerLast=remoteTo||null;
   if(cornerWon("bot")){
     renderCorners();pushArcadePosition();
     finishArcade(false,`${opponentName()} первым занял ваш угол.`,startCorners);
@@ -568,7 +638,19 @@ function applyOnlineDominoAction(game,action){
     pendingArcadeOnlineActions.push({game,action});
     return;
   }
-  domino=restoreOnlineDominoSnapshot(action.state||{});
+  const placedTiles=state=>[
+    ...(state?.chain||[]),
+    ...(state?.home?.top||[]),
+    ...(state?.home?.bottom||[])
+  ];
+  const oldIds=new Set(placedTiles(domino).map(tile=>Number(tile?._dominoId)).filter(Boolean));
+  const nextDomino=restoreOnlineDominoSnapshot(action.state||{});
+  const addedTile=placedTiles(nextDomino).find(tile=>tile?._dominoId&&!oldIds.has(Number(tile._dominoId)));
+  if(addedTile)queueArcadeMove(
+    captureArcadeMover(".domino-bot-rack .domino-tile"),
+    `.domino-chain .domino-tile[data-domino-id="${addedTile._dominoId}"]`
+  );
+  domino=nextDomino;
   renderDomino();pushArcadePosition();
   if(domino.bot.length===0){
     dominoRoundEnd("bot");
@@ -717,6 +799,7 @@ function dominoTileNode(tile,classes=""){
   const pipMap={0:[],1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]};
   const half=value=>`<span class="domino-half" data-value="${value}">${Array.from({length:9},(_,index)=>`<i class="${pipMap[value].includes(index+1)?"pip-on":""}"></i>`).join("")}</span>`;
   const el=document.createElement("button");el.type="button";el.className=`domino-tile ${classes}`;el.innerHTML=half(tile[0])+half(tile[1]);
+  if(tile._dominoId)el.dataset.dominoId=String(tile._dominoId);
   el.setAttribute("aria-label",classes.includes("hidden-tile")?"Закрытая кость":`Кость ${tile[0]}–${tile[1]}`);
   if(classes.includes("chain-tile")||classes.includes("hidden-tile"))el.tabIndex=-1;
   return el;
@@ -797,6 +880,7 @@ function renderDomino(){
   domino.player.forEach((tile,index)=>{
     const sides=dominoSides(tile),playable=sides.length,homePriority=sides.some(isDirectHomeSide);
     const el=dominoTileNode(tile,`${playable?"playable":""}${homePriority?" home-priority":""}`.trim());
+    el.dataset.handIndex=String(index);
     if(homePriority)el.title="Эту кость можно приоритетно поставить в «Дом»";
     el.disabled=domino.turn!=="player"||!playable;el.addEventListener("click",()=>dominoChoose(index));hand.appendChild(el);
   });
@@ -850,9 +934,10 @@ function renderDomino(){
   const hasHomeMove=domino.fives&&domino.turn==="player"&&domino.player.some(tile=>dominoSides(tile).some(isDirectHomeSide));
   arcadeEl("arcadeInfo").innerHTML=`<span>Базар: <b>${domino.stock.length}</b></span><span>Открытые края: <b>${dominoOpenEndsText()}</b></span>${domino.fives?`<span>Пятёрки: <b>${domino.fiveCounts.player} : ${domino.fiveCounts.bot}</b></span><span>До победы: <b>${Math.max(0,100-domino.score.player)} : ${Math.max(0,100-domino.score.bot)}</b></span>${domino.home?`<span>Дом: <b>${domino.home.value}:${domino.home.value} · четыре линии</b></span>`:"<span>Дом: <b>первый дубль ещё не выставлен</b></span>"}${hasHomeMove?"<span class=\"home-move-hint\">★ Есть приоритетный ход прямо в «Дом»</span>":""}${lastScore}`:`<span>Кости на руках: <b>${domino.player.length} : ${domino.bot.length}</b></span><span>До 101: <b>${Math.max(0,101-domino.score.player)} : ${Math.max(0,101-domino.score.bot)}</b></span><span>«Яйца»: <b>${domino.eggs||0}</b>${domino.eggs?` · следующий штраф ×${domino.eggs+1}`:""}</span>`}`;
   if(domino.turn==="player"&&!domino.player.some(tile=>dominoSides(tile).length)&&!domino.stock.length)setArcadeActions([{label:"Пас",action:()=>dominoPass("player"),primary:true}]);else if(!domino.pending)setArcadeActions([]);
+  playPendingArcadeMove();
 }
 function dominoChoose(index){
-  if(arcadeOver||domino.turn!=="player")return;const sides=dominoSides(domino.player[index]);if(!sides.length)return;
+  if(arcadeOver||domino.turn!=="player"||arcadeAnimating)return;const sides=dominoSides(domino.player[index]);if(!sides.length)return;
   if(sides.length>1&&domino.chain.length){
     const sideLabels={left:"Поставить слева",right:"Поставить справа",top:"★ В «Дом» — сверху",bottom:"★ В «Дом» — снизу"};
     domino.pending=index;setArcadeActions(sides.map(side=>({label:sideLabels[side],action:()=>dominoPlay("player",index,side),primary:isDirectHomeSide(side)})));return
@@ -938,8 +1023,12 @@ function sendOnlineDominoState(turnOverride=null){
 }
 function dominoPlay(who,index,side){
   beginArcadeHistoryBranch();
+  const movingSnapshot=captureArcadeMover(who==="player"
+    ?`.domino-player-hand .domino-tile[data-hand-index="${index}"]`
+    :".domino-bot-rack .domino-tile");
   const hand=domino[who],tile=hand.splice(index,1)[0],placed=orientDomino(tile,side);
   placed._dominoId=++domino.tileSeq;
+  queueArcadeMove(movingSnapshot,`.domino-chain .domino-tile[data-domino-id="${placed._dominoId}"]`);
   if(side==="left")domino.chain.unshift(placed);
   else if(side==="right")domino.chain.push(placed);
   else domino.home[side].push(placed);
@@ -969,7 +1058,7 @@ function dominoPlay(who,index,side){
   renderDomino();pushArcadePosition();if(domino.turn==="bot"&&!onlineHumanMatch(arcadeMode))arcadeTimer=setTimeout(dominoBot,430);
 }
 function dominoDraw(){
-  if(arcadeOver||domino.turn!=="player"||!domino.stock.length||domino.player.some(tile=>dominoSides(tile).length))return;
+  if(arcadeOver||domino.turn!=="player"||arcadeAnimating||!domino.stock.length||domino.player.some(tile=>dominoSides(tile).length))return;
   beginArcadeHistoryBranch();domino.player.push(domino.stock.pop());domino.pending=null;sendOnlineDominoState();renderDomino();pushArcadePosition();
 }
 function dominoPass(who){
@@ -1002,7 +1091,7 @@ function dominoProjectedEnds(tile,side,placed){
   return current-oldContribution+endpoint(placed);
 }
 function dominoBot(){
-  if(arcadeOver)return;while(domino.stock.length&&!domino.bot.some(tile=>dominoSides(tile).length))domino.bot.push(domino.stock.pop());
+  if(arcadeOver)return;if(arcadeAnimating){arcadeTimer=setTimeout(dominoBot,120);return}while(domino.stock.length&&!domino.bot.some(tile=>dominoSides(tile).length))domino.bot.push(domino.stock.pop());
   const level=opponentLevelForMode(arcadeMode);
   const choices=[];domino.bot.forEach((tile,index)=>dominoSides(tile).forEach(side=>{const placed=orientDomino(tile,side),old=domino.chain;
     const test=side==="left"?[placed,...old]:side==="right"?[...old,placed]:old,first=test[0],last=test.at(-1),ends=dominoProjectedEnds(tile,side,placed);

@@ -1,0 +1,248 @@
+/* Mobile layout for the club and every game table. */
+@media (max-width: 700px) {
+  :root { --mobile-gutter: 8px; }
+  html, body { width: 100%; height: 100%; overscroll-behavior: none; }
+
+  .topbar {
+    height: 60px;
+    padding: 0 var(--mobile-gutter);
+    gap: 6px;
+  }
+  .brand { min-width: 0; gap: 7px; margin-right: auto; }
+  .brand-mark { width: 28px; height: 28px; flex: 0 0 28px; }
+  .brand strong { font-size: 15px; white-space: nowrap; }
+  .brand small { font-size: 7px; letter-spacing: .1em; }
+  .topbar-computer-button,
+  .topbar-rules-button {
+    min-height: 40px;
+    padding: 6px 8px;
+    font-size: 0;
+    white-space: nowrap;
+  }
+  .topbar-computer-button::after { content: "Против ПК"; font-size: 10px; }
+  .topbar-rules-button::after { content: "Правила"; font-size: 10px; }
+  .profile { gap: 0; }
+  .profile-progress { display: none; }
+  .avatar-button { min-width: 40px; min-height: 40px; padding: 5px; justify-content: center; }
+  .avatar-button #profileName { display: none; }
+  .mini-avatar { width: 30px; height: 30px; }
+
+  .club.new-room {
+    --mobile-room-segment: calc(100dvh * 1.358736);
+    --mobile-room-unit: calc(var(--mobile-room-segment) / 100);
+    height: 100dvh;
+    padding-top: 0;
+    touch-action: pan-x;
+    scrollbar-width: none;
+  }
+  .club.new-room::-webkit-scrollbar { display: none; }
+  .new-room-backdrop,
+  .new-room-foreground,
+  .seat-front-overlay {
+    width: calc(var(--room-width-units) * var(--mobile-room-unit));
+    background-position: left center;
+    background-size: var(--mobile-room-segment) 100%;
+  }
+  .new-room-boards,
+  .room-online-guests { width: calc(var(--room-width-units) * var(--mobile-room-unit)); }
+  .new-room-board {
+    left: calc(var(--board-x) * var(--mobile-room-unit));
+    width: clamp(78px, calc(var(--mobile-room-segment) * .104), 154px);
+  }
+  .new-room .new-room-table {
+    left: calc(var(--x) * var(--mobile-room-unit));
+    width: calc(var(--mobile-room-segment) * .19);
+  }
+  .new-room .new-room-table .table-status { top: -18%; }
+  .new-room .new-room-table .table-number { top: 31%; }
+  .seat-hotspot {
+    left: calc(var(--seat-x) * var(--mobile-room-unit));
+    width: calc(var(--mobile-room-segment) * .1);
+  }
+  .club.new-room #player,
+  .room-guest { left: calc(var(--px) * var(--mobile-room-unit)); }
+  .club.new-room #player.sitting,
+  .room-guest.sitting {
+    width: clamp(100px, calc(var(--mobile-room-segment) * .094), 142px);
+    height: clamp(190px, calc(var(--mobile-room-segment) * .19), 240px);
+    transform: translate(-50%, -102%);
+  }
+  .club.new-room #player.sitting.seat-left,
+  .room-guest.sitting.seat-left { transform: translate(-72%, -102%); }
+  .club.new-room #player.sitting.seat-right,
+  .room-guest.sitting.seat-right { transform: translate(-28%, -102%); }
+  .new-room .interaction {
+    left: var(--mobile-gutter);
+    right: var(--mobile-gutter);
+    bottom: 54px;
+    width: auto;
+    max-width: none;
+    transform: none;
+    text-align: center;
+  }
+  .new-room .controls-hint { display: none; }
+  .new-room .new-room-table { min-width: 74px; }
+  .new-room .new-room-table .table-status { max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
+
+  .sidebar {
+    display: block;
+    top: 66px;
+    right: var(--mobile-gutter);
+    width: min(270px, calc(100vw - 16px));
+    max-height: calc(100dvh - 76px);
+  }
+  .sidebar:not(.collapsed) { overflow-y: auto; }
+  .sidebar-tabs button { min-height: 42px; padding: 8px 5px; font-size: 10px; }
+  .sidebar.collapsed { width: min(270px, calc(100vw - 16px)); }
+
+  .chat-panel {
+    display: flex;
+    left: var(--mobile-gutter);
+    right: var(--mobile-gutter);
+    bottom: var(--mobile-gutter);
+    width: auto;
+    max-width: none;
+    height: min(210px, 34dvh);
+  }
+  .chat-panel.collapsed { width: min(210px, calc(100vw - 16px)); height: 42px; right: auto; }
+  .chat-tabs button { min-height: 42px; padding-block: 8px; }
+  .messages { -webkit-overflow-scrolling: touch; }
+
+  .customizer form,
+  .rules-book,
+  .history-article {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    border-radius: 14px;
+  }
+  .customizer form { padding: 24px 16px 18px; }
+  .fields input,
+  .fields select,
+  .fields textarea,
+  .primary { min-height: 44px; }
+
+  .game-dialog,
+  .arcade-dialog { height: 100dvh; overflow-y: auto; }
+  .game-shell,
+  .arcade-shell { min-height: 100dvh; padding: 8px 8px 24px; }
+  .game-header,
+  .arcade-header {
+    position: sticky;
+    z-index: 40;
+    top: 0;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 4px;
+    padding: 6px 0 8px;
+    background: rgb(22 33 27 / 96%);
+    backdrop-filter: blur(10px);
+  }
+  .game-header h2,
+  .arcade-header h2 { margin: 2px 0; font-size: 16px; line-height: 1.1; }
+  .game-header .back,
+  .arcade-header .back {
+    width: 44px;
+    min-height: 42px;
+    padding: 0;
+    overflow: hidden;
+    font-size: 0;
+  }
+  .game-header .back::after,
+  .arcade-header .back::after { content: "←"; font-size: 21px; }
+  .game-header .sound,
+  .arcade-header .sound { width: 44px; min-height: 42px; padding: 0; font-size: 0; }
+  .game-header .sound::after { content: "♪"; font-size: 17px; }
+  .arcade-header .sound::after { content: "Клуб"; font-size: 9px; }
+
+  .game-layout { width: 100%; margin: 8px auto 0; gap: 9px; }
+  .board-wrap { order: 0; width: 100%; padding: 7px 7px 10px; border-radius: 12px; }
+  .match-card.opponent { order: 1; }
+  .match-card.self { order: 2; }
+  .difficulty-panel { order: 3; }
+  .move-history { order: 4; width: 100%; height: 270px; }
+  .game-chat { order: 5; width: 100%; height: 180px; }
+  .turn-line { gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .timer { width: min(132px, 42vw); }
+  .board-frame {
+    grid-template-columns: 18px minmax(0, 1fr) 18px;
+    grid-template-rows: 18px minmax(0, 1fr) 18px;
+    padding: 2px;
+  }
+  .board { border-width: 8px; }
+  .board-files { padding: 0 8px; font-size: 8px; }
+  .board-ranks { padding: 8px 0; font-size: 8px; }
+  .piece { border-width: 1.5px; }
+  .difficulty-options { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .difficulty-options button { min-height: 42px; padding: 4px; }
+  .difficulty-options button span { font-size: 8px; }
+  .history-navigation button { min-height: 40px; }
+
+  .arcade-scorebar {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 5px;
+    margin: 8px auto;
+  }
+  .arcade-scorebar > div { min-width: 0; padding: 8px; display: grid; gap: 2px; }
+  .arcade-scorebar span { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+  .arcade-scorebar b { font-size: 11px; }
+  .arcade-scorebar p { font-size: 11px; }
+  .arcade-stage { display: flex; flex-direction: column; gap: 10px; }
+  .arcade-board { order: 0; width: 100%; border-width: 6px; box-shadow: 0 12px 32px #0008; }
+  .arcade-side-column { order: 1; width: 100%; gap: 9px; }
+  .arcade-sidebar { max-height: none; padding: 13px; }
+  .arcade-sidebar > p { max-height: 115px; overflow-y: auto; }
+  .arcade-chat { padding: 10px; }
+  .arcade-chat-messages { height: 135px; }
+  .arcade-board.chess-board-frame {
+    grid-template-columns: 20px minmax(0, 1fr) 20px;
+    grid-template-rows: 20px minmax(0, 1fr) 20px;
+  }
+  .chess-axis { font-size: 8px; }
+  .arcade-cell { font-size: clamp(24px, 10vw, 42px); }
+
+  .arcade-board.domino-table { width: 100%; padding: 6px; border-width: 6px; }
+  .domino-player-hand { padding-inline: 0; overflow-x: hidden; }
+  .arcade-market-slot { padding: 9px; }
+  .domino-market-zone { grid-template-columns: 94px minmax(0, 1fr); gap: 9px; }
+  .domino-market-button { min-height: 92px; }
+
+  .wood-menu { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow-y: auto; padding: 26px 18px 30px; }
+  .wood-menu-list button { min-height: 48px; font-size: 16px; }
+  .coin-toss-card {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    overflow-y: auto;
+    padding: 20px 16px;
+  }
+  .coin-toss-card h2 { font-size: 23px; }
+  .coin-toss-stage { width: 210px; height: 220px; }
+  .toss-coin { left: 45px; top: 45px; width: 120px; height: 120px; }
+  .coin-shadow { left: 45px; width: 120px; }
+  .coin-face i { font-size: 38px; }
+
+  .result-overlay { padding: 8px; }
+  .result-card { width: 100%; max-height: calc(100dvh - 16px); overflow-y: auto; padding: 18px 16px 20px; }
+  .result-visual { width: 180px; height: 145px; transform: scale(.8); transform-origin: center top; margin-bottom: -24px; }
+  .result-card h2 { font-size: 27px; }
+  .result-actions { grid-template-columns: 1fr; }
+  .result-actions button { min-height: 44px; }
+}
+
+@media (max-width: 390px) {
+  .brand small { display: none; }
+  .topbar-computer-button::after { content: "ПК"; }
+  .topbar-rules-button::after { content: "?"; font-size: 15px; }
+  .difficulty-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .arcade-scorebar p { font-size: 9px; }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .game-header,
+  .arcade-header { position: static; }
+  .board-wrap,
+  .arcade-board { max-width: min(72vh, 620px); margin-inline: auto; }
+  .coin-toss-stage { height: 180px; transform: scale(.78); transform-origin: center top; margin-bottom: -38px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arcade-moving-piece { animation: none !important; }
+}

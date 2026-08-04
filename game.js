@@ -57,6 +57,7 @@ let profileSaveQueue = Promise.resolve();
 let pos = { x: 94, y: 69 }, targetPos = null, arrivalCallback = null, nearTable = null, nearBulletin = false, soundOn = true, audioCtx;
 let roomWidthUnits = 100;
 let board = [], turn = "white", selected = null, chainPiece = null, seconds = 60, timerId, gameOver = false, moveHistory = [], activeOpeningName = null, announcedOpeningName = null, announcedEndgameClass = null;
+let checkersMoveAnimating = false, checkersAnimationRun = 0;
 let checkersTimeline = [], checkersTimelineIndex = -1, checkersHistoryReview = false, checkersAnalysisMode = false, checkersResultRecorded = false, gameActionGeneration = 0;
 let playerPieceColor = "white", coinTossRun = 0, pendingCoinStart = null;
 let currentGameMode = "checkers";
@@ -806,10 +807,16 @@ function setRoomExtent(units=100){
 }
 window.setRoomExtent=setRoomExtent;
 
+function roomUnitPixels(){
+  const backdrop=$(".new-room-backdrop");
+  const width=backdrop?.getBoundingClientRect().width;
+  return width&&roomWidthUnits?width/roomWidthUnits:window.innerWidth/100;
+}
+
 function keepRoomPlayerInView(){
   const club=$("#club");
   if(!club?.classList.contains("new-room")||club.scrollWidth<=club.clientWidth)return;
-  const playerPixels=pos.x*window.innerWidth/100;
+  const playerPixels=pos.x*roomUnitPixels();
   const margin=Math.min(club.clientWidth*.24,260);
   if(playerPixels>club.scrollLeft+club.clientWidth-margin){
     club.scrollLeft=Math.min(club.scrollWidth-club.clientWidth,playerPixels-club.clientWidth+margin);
@@ -910,7 +917,7 @@ $("#club").addEventListener("click", e => {
   }
   if(e.target.closest("button,aside,.chat-panel"))return;
   const club=$("#club"),r=club.getBoundingClientRect();
-  const x=(e.clientX-r.left+club.scrollLeft)/window.innerWidth*100;
+  const x=(e.clientX-r.left+club.scrollLeft)/roomUnitPixels();
   walkTo(x,(e.clientY-r.top)/r.height*100);
 });
 $("#roomsPanel").addEventListener("click", event => {
@@ -1037,7 +1044,8 @@ function setSidebarCollapsed(collapsed,persist=true){
   sidebarCollapse.querySelector("span").textContent=collapsed?"+":"−";
   if(persist)localStorage.setItem("quietMoveSidebarCollapsed",collapsed?"1":"0");
 }
-setSidebarCollapsed(localStorage.getItem("quietMoveSidebarCollapsed")==="1",false);
+const mobileClubLayout=window.matchMedia("(max-width: 700px)").matches;
+setSidebarCollapsed(mobileClubLayout||localStorage.getItem("quietMoveSidebarCollapsed")==="1",false);
 sidebarCollapse.addEventListener("click",()=>setSidebarCollapsed(!clubSidebar.classList.contains("collapsed")));
 const clubChatPanel=$("#clubChatPanel"),chatCollapse=$("#chatCollapse");
 function setChatCollapsed(collapsed,persist=true){
@@ -1048,7 +1056,7 @@ function setChatCollapsed(collapsed,persist=true){
   chatCollapse.querySelector("span").textContent=collapsed?"+":"−";
   if(persist)localStorage.setItem("yourTurnChatCollapsed",collapsed?"1":"0");
 }
-setChatCollapsed(localStorage.getItem("yourTurnChatCollapsed")==="1",false);
+setChatCollapsed(mobileClubLayout||localStorage.getItem("yourTurnChatCollapsed")==="1",false);
 chatCollapse.addEventListener("click",()=>setChatCollapsed(!clubChatPanel.classList.contains("collapsed")));
 $$(".sidebar-tabs button[data-panel]").forEach(b => b.addEventListener("click", () => {
   $$(".sidebar-tabs button[data-panel]").forEach(x => x.classList.toggle("active", x === b));
@@ -1673,10 +1681,18 @@ function placeFloating(item, className) {
   document.body.appendChild(node);
   return node;
 }
+function clearCheckersMoveAnimation() {
+  checkersAnimationRun++;
+  checkersMoveAnimating=false;
+  document.querySelectorAll(".moving-piece,.captured-piece").forEach(node=>node.remove());
+  document.querySelectorAll(".piece-arriving").forEach(node=>node.classList.remove("piece-arriving"));
+}
 function playMoveAnimation(snapshot, to) {
-  if (!snapshot) return;
+  if (!snapshot) { checkersMoveAnimating=false; return; }
   const destination = $(`.cell[data-r="${to[0]}"][data-c="${to[1]}"] .piece`);
-  if (!destination) return;
+  if (!destination) { checkersMoveAnimating=false; return; }
+  const run=++checkersAnimationRun;
+  checkersMoveAnimating=true;
   const end = destination.getBoundingClientRect();
   destination.classList.add("piece-arriving");
   const mover = placeFloating(snapshot.moving, "moving-piece");
@@ -1685,16 +1701,17 @@ function playMoveAnimation(snapshot, to) {
     { transform:"translate3d(0,0,0) rotate(0deg)", offset:0 },
     { transform:`translate3d(${dx*.5}px,${dy*.5-13}px,0) rotate(2deg)`, offset:.52 },
     { transform:`translate3d(${dx}px,${dy}px,0) rotate(0deg)`, offset:1 }
-  ], { duration:310, easing:"cubic-bezier(.22,.8,.25,1)", fill:"forwards" });
-  travel.onfinish = () => { mover.remove(); destination.classList.remove("piece-arriving"); };
+  ], { duration:window.matchMedia("(prefers-reduced-motion: reduce)").matches?1:680, easing:"cubic-bezier(.22,.72,.2,1)", fill:"forwards" });
+  const finish=()=>{mover.remove();destination.classList.remove("piece-arriving");if(run===checkersAnimationRun)checkersMoveAnimating=false};
+  travel.onfinish=finish;travel.oncancel=finish;
   if (snapshot.captured) {
     const victim = placeFloating(snapshot.captured, "captured-piece");
     requestAnimationFrame(() => { victim.style.transform="scale(.35) rotate(16deg)"; victim.style.opacity="0"; });
-    setTimeout(() => victim.remove(),260);
+    setTimeout(() => victim.remove(),520);
   }
 }
 function handleCell(e) {
-  if(turn!=="white"||gameOver)return;
+  if(turn!=="white"||gameOver||checkersMoveAnimating)return;
   const r=+e.currentTarget.dataset.r,c=+e.currentTarget.dataset.c, moves=allMoves("white").filter(m=>!chainPiece||m.from.join()===chainPiece.join());
   const chosen=selected&&moves.find(m=>m.from.join()===selected.join()&&m.to[0]===r&&m.to[1]===c);
   if(chosen){beginCheckersHistoryBranch();performMove(chosen);return}
@@ -1787,6 +1804,7 @@ function clearCheckersTimeline() {
 }
 function restoreCheckersPosition(snapshot) {
   cancelScheduledGameActions();
+  clearCheckersMoveAnimation();
   clearInterval(timerId);
   hideResultOverlay();
   board = cloneCheckersBoard(snapshot.board);
@@ -1882,11 +1900,11 @@ function performMove(m, source="local") {
   if(m.capture&&capturesFrom(m.to[0],m.to[1]).length){
     chainPiece=m.to;selected=m.to;renderBoard();playMoveAnimation(animation,m.to);
     $("#gameTip").textContent=p.color==="white"?"Продолжите взятие этой же шашкой.":`${opponentName()} продолжает взятие…`;
-    if(p.color==="black"&&!onlineHumanMatch())scheduleGameAction(botMove,420);
+    if(p.color==="black"&&!onlineHumanMatch())scheduleGameAction(botMove,760);
     return
   }
   chainPiece=null;selected=null;turn=p.color==="white"?"black":"white";resetTimer();renderBoard();playMoveAnimation(animation,m.to);updateTurn();pushCheckersPosition();
-  scheduleGameAction(checkEnd,150);if(turn==="black"&&!gameOver&&!onlineHumanMatch())scheduleGameAction(botMove,550);
+  scheduleGameAction(checkEnd,720);if(turn==="black"&&!gameOver&&!onlineHumanMatch())scheduleGameAction(botMove,800);
 }
 function simulateMove(state,m) {
   const next=state.map(row=>row.map(piece=>piece?{...piece}:null));
@@ -2536,7 +2554,7 @@ function openCheckersAnalysis(){
   $("#gameTip").textContent="Используйте «Шаг назад» и выберите другое продолжение. Первый результат уже сохранён.";
 }
 function startGame(tableNo,mode="checkers"){
-  currentTableNo=String(tableNo);currentGameMode=mode;hideResultOverlay();closeWinStreakPopup();cancelLossRescue();setActiveOpponent(activeOpponentId);updateDifficultyUI();cancelCoinToss();
+  currentTableNo=String(tableNo);currentGameMode=mode;clearCheckersMoveAnimation();hideResultOverlay();closeWinStreakPopup();cancelLossRescue();setActiveOpponent(activeOpponentId);updateDifficultyUI();cancelCoinToss();
   const onlineMatch=onlineHumanMatch(mode);
   if(!onlineMatch)window.clubOnline?.cancelSearch();
   pendingCheckersOnlineActions.length=0;
@@ -2571,7 +2589,7 @@ function startGame(tableNo,mode="checkers"){
   },"color",onlineMatch?onlineMatch.coinResult:null,onlineMatch?{color:onlineMatch.me.color}:null);
 }
 function exitGameToClub(){
-  clearInterval(timerId);cancelScheduledGameActions();clearCheckersTimeline();hideResultOverlay();closeWinStreakPopup();cancelLossRescue();cancelCoinToss();$(".game-shell").classList.remove("game-pending-toss");
+  clearInterval(timerId);cancelScheduledGameActions();clearCheckersMoveAnimation();clearCheckersTimeline();hideResultOverlay();closeWinStreakPopup();cancelLossRescue();cancelCoinToss();$(".game-shell").classList.remove("game-pending-toss");
   if($("#gameDialog").open)$("#gameDialog").close();
   window.clubOnline?.leaveTable();
   window.computerOpponentMode=false;

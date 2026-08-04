@@ -26,5 +26,6 @@ body.loading-game{overflow:hidden}
 .game-loading-track{height:12px;padding:2px;border:1px solid #9d703c80;border-radius:999px;background:#e5ceb0;overflow:hidden}
 .game-loading-track i{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,#9d6b2d,#d3a953 55%,#f0cf7c);box-shadow:0 0 12px #d8ab57;transition:width .08s linear}
 .game-loading-screen.is-complete{opacity:0;visibility:hidden;pointer-events:none}
+body .captured-piece{transition-duration:.48s!important}
 @media(max-aspect-ratio:4/3){.game-loading-screen>img{object-fit:contain;background:#f5e6d1}.game-loading-status{bottom:24px}}
 @media(prefers-reduced-motion:reduce){.game-loading-screen{transition-duration:.15s}.game-loading-track i{transition:none}}
