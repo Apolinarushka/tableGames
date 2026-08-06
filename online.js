@@ -18,6 +18,69 @@
   let pendingPresence = null;
   let presenceTimer = null;
   let lastPresenceSentAt = 0;
+  let chatBlockedUntil = 0;
+  let chatBlockTimer = null;
+  const moderationStorageKey = `table-games-private-moderation-notices:${sessionId}`;
+  let moderationNoticeCounter = 0;
+  let moderationNotices = loadModerationNotices();
+
+  function loadModerationNotices() {
+    try {
+      const parsed = JSON.parse(sessionStorage.getItem(moderationStorageKey) || "[]");
+      if (!Array.isArray(parsed)) return [];
+      return parsed.slice(-40).filter(item => item && typeof item.message === "string");
+    } catch {
+      return [];
+    }
+  }
+
+  function saveModerationNotices() {
+    try {
+      sessionStorage.setItem(moderationStorageKey, JSON.stringify(moderationNotices.slice(-40)));
+    } catch {
+      // The live chat still keeps the notices when session storage is unavailable.
+    }
+  }
+
+  function moderationNoticeIdentity(data) {
+    const channel = data.channel === "table" ? "table" : "global";
+    const tableNumber = channel === "table" ? Number(data.tableNumber) || 0 : 0;
+    if (data.blockedUntil) return `${channel}:${tableNumber}:blocked:${data.blockedUntil}`;
+    return `${data.action || "warning"}:${data.warning || 0}:${Date.now()}:${++moderationNoticeCounter}`;
+  }
+
+  function appendModerationNotice(data) {
+    const id = moderationNoticeIdentity(data);
+    if (moderationNotices.some(item => item.id === id)) return;
+    const channel = data.channel === "table" ? "table" : "global";
+    moderationNotices.push({
+      id,
+      action: data.action === "blocked" ? "blocked" : "warning",
+      message: String(data.message || "Сообщение не прошло модерацию."),
+      channel,
+      tableNumber: channel === "table" ? Number(data.tableNumber) || null : null,
+      time: new Intl.DateTimeFormat("ru-RU", {hour: "2-digit", minute: "2-digit"}).format(new Date())
+    });
+    moderationNotices = moderationNotices.slice(-40);
+    saveModerationNotices();
+    lastMessagesSignature = "";
+    lastTableMessagesSignature = "";
+    renderMessages(latestSnapshot.messages || [], latestSnapshot.players || []);
+    renderTableMessages(latestSnapshot.tableMessages || []);
+  }
+
+  function appendModerationRow(box, notice) {
+    const row = document.createElement("p");
+    const author = document.createElement("b");
+    const message = document.createElement("span");
+    const time = document.createElement("small");
+    row.className = `moderation-notice ${notice.action === "blocked" ? "is-blocked" : "is-warning"}`;
+    author.textContent = notice.action === "blocked" ? "Блокировка" : "Предупреждение";
+    message.textContent = notice.message;
+    time.textContent = notice.time || "";
+    row.append(author, message, time);
+    box.append(row);
+  }
 
   const gameNames = {
     checkers: "шашки",
@@ -38,6 +101,46 @@
     if (!socket || socket.readyState !== WebSocket.OPEN) return false;
     socket.send(JSON.stringify(payload));
     return true;
+  }
+
+  function updateChatLockUI() {
+    const remaining = Math.max(0, chatBlockedUntil - Date.now());
+    const blocked = remaining > 0;
+    const totalSeconds = Math.ceil(remaining / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    const timeLabel = `${String(minutes).padStart(2,"0")}:${String(seconds).padStart(2,"0")}`;
+    for (const [formSelector, inputSelector] of [
+      ["#chatForm", "#chatInput"],
+      ["#gameChatForm", "#gameChatInput"],
+      ["#arcadeChatForm", "#arcadeChatInput"]
+    ]) {
+      const form = document.querySelector(formSelector);
+      const input = document.querySelector(inputSelector);
+      const submit = form?.querySelector('button[type="submit"], button:not([type])');
+      if (!input) continue;
+      if (!input.dataset.defaultPlaceholder) input.dataset.defaultPlaceholder = input.placeholder;
+      input.disabled = blocked;
+      input.placeholder = blocked ? `Чат заблокирован · ${timeLabel}` : input.dataset.defaultPlaceholder;
+      if (submit) submit.disabled = blocked;
+    }
+    if (!blocked && chatBlockedUntil) {
+      chatBlockedUntil = 0;
+      clearInterval(chatBlockTimer);
+      chatBlockTimer = null;
+      if (typeof window.toast === "function") window.toast("Блокировка чата снята. Общайтесь уважительно.");
+    }
+  }
+
+  function handleChatModeration(data) {
+    appendModerationNotice(data);
+    if (data.channel !== "table") window.openClubChat?.();
+    const blockedUntil = Date.parse(String(data.blockedUntil || ""));
+    if (data.action !== "blocked" || !Number.isFinite(blockedUntil)) return;
+    chatBlockedUntil = blockedUntil;
+    clearInterval(chatBlockTimer);
+    updateChatLockUI();
+    chatBlockTimer = window.setInterval(updateChatLockUI, 1000);
   }
 
   function pluralPlayers(count) {
@@ -100,14 +203,16 @@
   function renderMessages(messages, players) {
     const box = document.querySelector("#messages");
     if (!box) return;
+    const privateNotices = moderationNotices.filter(item => item.channel === "global");
     const lookingPlayers = players.filter(player => player.lookingForOpponent);
     const lookingById = new Map(lookingPlayers.map(player => [player.id, player]));
-    const signature = messages.map(item => item.id).join(",") + "|" + lookingPlayers
+    const signature = messages.map(item => item.id).join(",") + "|" + privateNotices
+      .map(item => item.id).join(",") + "|" + lookingPlayers
       .map(player => `${player.id}:${player.lookingGame}:${player.lookingLevel}`).join(",");
     if (signature === lastMessagesSignature) return;
     lastMessagesSignature = signature;
     box.replaceChildren();
-    if (!messages.length) {
+    if (!messages.length && !privateNotices.length) {
       const empty = document.createElement("p");
       empty.className = "system";
       const text = document.createElement("span");
@@ -134,6 +239,7 @@
       }
       box.append(row);
     }
+    for (const notice of privateNotices) appendModerationRow(box, notice);
     for (const player of lookingPlayers) {
       const row = document.createElement("p");
       const author = document.createElement("b");
@@ -203,7 +309,10 @@
   function renderTableMessages(messages) {
     if (!currentTableNumber) return;
     const visible = messages.filter(item => Number(item.tableNumber) === Number(currentTableNumber));
-    const signature = `${currentTableNumber}|${visible.map(item => item.id).join(",")}`;
+    const privateNotices = moderationNotices.filter(item =>
+      item.channel === "table" && Number(item.tableNumber) === Number(currentTableNumber)
+    );
+    const signature = `${currentTableNumber}|${visible.map(item => item.id).join(",")}|${privateNotices.map(item => item.id).join(",")}`;
     if (signature === lastTableMessagesSignature) return;
     lastTableMessagesSignature = signature;
     for (const box of [
@@ -212,7 +321,7 @@
     ]) {
       if (!box) continue;
       box.replaceChildren();
-      if (!visible.length) {
+      if (!visible.length && !privateNotices.length) {
         const empty = document.createElement("p");
         empty.className = "system";
         empty.innerHTML = "<span>Чат стола подключён. Напишите сопернику.</span>";
@@ -229,6 +338,7 @@
         row.append(author, message, time);
         box.append(row);
       }
+      for (const notice of privateNotices) appendModerationRow(box, notice);
       box.scrollTop = box.scrollHeight;
     }
   }
@@ -619,9 +729,14 @@
     ]) {
       if (!button) continue;
       button.classList.toggle("is-looking", active);
-      button.textContent = active
-        ? `✓ ${gameNames[mine.lookingGame] || "Игра"} · ${levelNames[mine.lookingLevel] || "Б1"} · до 30 сек`
-        : "⚔ Ищу соперника";
+      const icon = document.createElement("span");
+      const label = document.createElement("b");
+      icon.setAttribute("aria-hidden", "true");
+      icon.textContent = active ? "✓" : "⚔";
+      label.textContent = active
+        ? `${gameNames[mine.lookingGame] || "Игра"} · ${levelNames[mine.lookingLevel] || "Б1"} · до 30 сек`
+        : "Ищу соперника";
+      button.replaceChildren(icon, label);
       button.setAttribute("aria-pressed", String(active));
     }
   }
@@ -723,6 +838,8 @@
         window.applyServerHeartState?.(data.hearts,data.coins,data.message);
       } else if (data.type === "fortune_result") {
         window.handleFortuneResult?.(data);
+      } else if (data.type === "chat_moderation") {
+        handleChatModeration(data);
       } else if (data.type === "notice") {
         if (typeof window.toast === "function") window.toast(data.message);
         if (data.message?.startsWith("30 секунд истекли")) {

@@ -101,6 +101,7 @@
 }
 
 .topbar-rules-button,
+.topbar-fullscreen-button,
 .topbar-computer-button {
   padding: .48rem .72rem;
   border: 1px solid rgb(215 173 98 / 32%);
@@ -108,6 +109,28 @@
   color: #d7bd82;
   background: rgb(255 255 255 / 5%);
   cursor: pointer;
+}
+
+.topbar-fullscreen-button {
+  display: inline-flex;
+  align-items: center;
+  gap: .38rem;
+  white-space: nowrap;
+}
+
+.topbar-fullscreen-button > span {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.topbar-fullscreen-button > b {
+  font-size: .72rem;
+}
+
+.topbar-fullscreen-button[aria-pressed="true"] {
+  border-color: rgb(230 196 123 / 58%);
+  color: #f4ddb0;
+  background: rgb(216 173 98 / 13%);
 }
 
 .topbar-computer-button {

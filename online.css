@@ -27,6 +27,54 @@
   white-space: nowrap;
 }
 
+.messages .moderation-notice,
+.game-chat .moderation-notice,
+.arcade-chat .moderation-notice {
+  display: grid;
+  grid-template-columns: minmax(5.8rem, auto) 1fr auto;
+  align-items: start;
+  gap: .35rem .55rem;
+  margin: 0 0 .55rem;
+  padding: .65rem .7rem;
+  border: 1px solid rgb(226 179 83 / 45%);
+  border-radius: .6rem;
+  background: rgb(86 61 21 / 36%);
+  color: #f3e7ca;
+  font-style: normal;
+}
+
+.messages .moderation-notice b,
+.game-chat .moderation-notice b,
+.arcade-chat .moderation-notice b {
+  color: #f0c96d;
+}
+
+.messages .moderation-notice span,
+.game-chat .moderation-notice span,
+.arcade-chat .moderation-notice span {
+  color: #f3e7ca;
+}
+
+.messages .moderation-notice small,
+.game-chat .moderation-notice small,
+.arcade-chat .moderation-notice small {
+  color: #bba985;
+  white-space: nowrap;
+}
+
+.messages .moderation-notice.is-blocked,
+.game-chat .moderation-notice.is-blocked,
+.arcade-chat .moderation-notice.is-blocked {
+  border-color: rgb(221 99 88 / 55%);
+  background: rgb(91 31 27 / 45%);
+}
+
+.messages .moderation-notice.is-blocked b,
+.game-chat .moderation-notice.is-blocked b,
+.arcade-chat .moderation-notice.is-blocked b {
+  color: #ff9e94;
+}
+
 .online-lobby {
   margin: 0 0 .8rem;
   padding: .8rem;
@@ -90,6 +138,7 @@
 
 .looking-opponent-button {
   display: flex;
+  align-items: center;
   justify-content: center;
   gap: .4rem;
   padding: .55rem;
@@ -161,8 +210,44 @@
 }
 
 .chat-find-opponent {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr) 1.25rem;
+  align-items: center;
+  width: auto;
   margin: .4rem .7rem;
   padding: .48rem;
+  text-align: center;
+}
+
+.chat-find-opponent::after {
+  width: 1.25rem;
+  content: "";
+}
+
+.chat-find-opponent > span {
+  display: grid;
+  width: 1.25rem;
+  place-items: center;
+}
+
+.chat-find-opponent > b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-panel input:disabled,
+.game-chat input:disabled,
+.arcade-chat input:disabled {
+  color: #d6b5ac;
+  opacity: 1;
+}
+
+.chat-panel form button:disabled,
+.game-chat form button:disabled,
+.arcade-chat form button:disabled {
+  cursor: not-allowed;
+  opacity: .35;
 }
 
 .message-challenge {

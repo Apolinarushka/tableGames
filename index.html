@@ -42,14 +42,16 @@
       <div class="online"><i></i><span id="onlineCount">0 персонажей в клубе</span></div>
       <button class="topbar-computer-button" id="computerGameButton" type="button">Игра против компьютера</button>
       <button class="topbar-rules-button" id="rulesMenuButton" type="button">Правила игр</button>
+      <button class="topbar-fullscreen-button" id="fullscreenButton" type="button" aria-label="Развернуть игру на весь экран" aria-pressed="false"><span aria-hidden="true">⛶</span><b>Во весь экран</b></button>
       <button class="heart-bank-button" id="heartBankButton" type="button" aria-label="Открыть запас сердечек">
         <span aria-hidden="true">♥</span><b id="heartCompactCount">10/10</b><small>попытки</small>
       </button>
       <div class="profile">
         <div class="profile-progress"><span class="rating">Рейтинг <b id="rating">1000</b></span><small id="playerLevel">Уровень после 10 партий</small></div>
-        <button class="avatar-button" id="customizeButton" aria-label="Открыть анкету игрока">
-          <span class="mini-avatar" id="miniAvatar"></span><span id="profileName">Гость</span>
-        </button>
+        <div class="avatar-button profile-identity" aria-label="Данные игрока загружаются через авторизацию VK">
+          <span class="mini-avatar" id="miniAvatar"></span>
+          <span class="profile-identity-copy"><span id="profileName">Гость</span><small id="profileAuthStatus">Гостевой вход</small></span>
+        </div>
       </div>
     </header>
 
@@ -124,7 +126,6 @@
       <div class="sidebar-tabs">
         <button class="active" type="button" data-panel="rooms">Столы</button>
         <button type="button" data-panel="history">История</button>
-        <button type="button" data-panel="playerProfile">Анкета</button>
         <button class="sidebar-collapse" id="sidebarCollapse" type="button" aria-expanded="true" aria-label="Свернуть меню" title="Свернуть меню"><span aria-hidden="true">−</span></button>
       </div>
       <div id="roomsPanel" class="side-panel">
@@ -150,10 +151,6 @@
         </header>
         <div class="character-roster" id="characterRoster"></div>
       </div>
-      <div id="playerProfilePanel" class="side-panel player-profile-panel hidden">
-        <article class="player-profile-card" id="playerProfileCard"></article>
-        <button class="edit-player-profile" id="editPlayerProfile">Редактировать анкету</button>
-      </div>
     </aside>
 
     <section class="chat-panel" id="clubChatPanel">
@@ -161,7 +158,7 @@
       <div class="messages" id="messages">
         <p class="system"><span>Список персонажей очищен.</span></p>
       </div>
-      <button class="chat-find-opponent" id="chatFindOpponent" type="button">⚔ Ищу соперника</button>
+      <button class="chat-find-opponent" id="chatFindOpponent" type="button"><span aria-hidden="true">⚔</span><b>Ищу соперника</b></button>
       <form id="chatForm"><input id="chatInput" maxlength="120" placeholder="Написать сообщение…" autocomplete="off"><button aria-label="Отправить">↗</button></form>
     </section>
   </main>
@@ -371,79 +368,6 @@
         </div>
       </section>
     </div>
-  </dialog>
-
-  <dialog id="customizer" class="customizer">
-    <form method="dialog">
-      <button class="close" value="cancel" aria-label="Закрыть">×</button>
-      <span class="eyebrow">Профиль участника</span><h2>Анкета игрока</h2>
-      <section class="social-auth" aria-labelledby="socialAuthTitle">
-        <div>
-          <h3 id="socialAuthTitle">Вход через социальную сеть</h3>
-          <p id="socialAuthStatus">Вы играете как локальный гость</p>
-        </div>
-        <div class="social-auth-buttons">
-          <button type="button" data-social-provider="VK"><b>VK</b><span>ВКонтакте</span></button>
-          <button type="button" data-social-provider="Yandex"><b>Я</b><span>Яндекс</span></button>
-          <button type="button" data-social-provider="Google"><b>G</b><span>Google</span></button>
-          <button type="button" data-social-provider="Telegram"><b>➤</b><span>Telegram</span></button>
-        </div>
-        <small class="social-auth-note">В локальной версии сохраняется выбранный способ входа. Безопасный OAuth будет подключён на сервере при публикации.</small>
-      </section>
-      <div class="customizer-body">
-        <div class="profile-visual-column">
-          <div class="avatar-preview">
-            <img class="uploaded-profile-photo hidden" id="profilePhotoPreview" alt="Ваша фотография">
-          </div>
-          <label class="photo-upload-button" for="profilePhotoInput">Загрузить реальную фотографию
-            <input id="profilePhotoInput" type="file" accept="image/png,image/jpeg,image/webp">
-          </label>
-          <button class="remove-profile-photo hidden" id="removeProfilePhoto" type="button">Удалить фотографию</button>
-          <p class="photo-help">JPG, PNG или WebP. Фотография уменьшается перед сохранением на этом устройстве.</p>
-        </div>
-        <div class="fields">
-          <div class="profile-fields-grid">
-            <label>Ник<input id="nameInput" maxlength="20" value="Гость" autocomplete="nickname"></label>
-            <label>Город<input id="cityInput" maxlength="40" placeholder="Например, Москва" autocomplete="address-level2"></label>
-            <label>Дата рождения<input id="birthDateInput" type="date" autocomplete="bday"></label>
-            <label>Часовой пояс
-              <select id="timezoneInput">
-                <option value="Europe/Kaliningrad">Калининград · UTC+2</option>
-                <option value="Europe/Moscow">Москва · UTC+3</option>
-                <option value="Europe/Samara">Самара · UTC+4</option>
-                <option value="Asia/Yekaterinburg">Екатеринбург · UTC+5</option>
-                <option value="Asia/Omsk">Омск · UTC+6</option>
-                <option value="Asia/Krasnoyarsk">Красноярск · UTC+7</option>
-                <option value="Asia/Irkutsk">Иркутск · UTC+8</option>
-                <option value="Asia/Yakutsk">Якутск · UTC+9</option>
-                <option value="Asia/Vladivostok">Владивосток · UTC+10</option>
-                <option value="Asia/Magadan">Магадан · UTC+11</option>
-                <option value="Asia/Kamchatka">Камчатка · UTC+12</option>
-                <option value="UTC">UTC</option>
-              </select>
-            </label>
-          </div>
-          <label>Интересы<input id="interestsInput" maxlength="180" placeholder="Кино, джаз, литература, путешествия"></label>
-          <div class="interest-suggestions" aria-label="Подсказки интересов">
-            <button type="button" data-interest="Шахматы">Шахматы</button>
-            <button type="button" data-interest="Шашки">Шашки</button>
-            <button type="button" data-interest="Кино">Кино</button>
-            <button type="button" data-interest="Музыка">Музыка</button>
-            <button type="button" data-interest="Литература">Литература</button>
-            <button type="button" data-interest="Путешествия">Путешествия</button>
-          </div>
-          <fieldset class="activity-editor">
-            <legend>Обычно активен в клубе</legend>
-            <div>
-              <label>С<input id="activityFromInput" type="time" value="18:00" step="3600"></label>
-              <label>До<input id="activityToInput" type="time" value="23:00" step="3600"></label>
-            </div>
-            <div class="activity-hours" id="activityHoursPreview" aria-label="Часы активности"></div>
-          </fieldset>
-          <button id="saveAvatar" class="primary" value="default">Сохранить анкету</button>
-        </div>
-      </div>
-    </form>
   </dialog>
 
   <dialog id="coinTossDialog" class="coin-toss-dialog" aria-labelledby="coinTossTitle">
@@ -680,9 +604,9 @@
       </ul>
       <div class="heart-actions">
         <button class="primary" id="openHeartFriends" type="button">Попросить у друзей</button>
-        <button class="heart-secondary" id="openHeartShop" type="button">Купить попытки</button>
+        <button class="heart-secondary feature-heart-shop" id="openHeartShop" type="button" aria-hidden="true" tabindex="-1">Купить попытки</button>
       </div>
-      <div class="heart-wallet">Клубные монеты: <b id="heartCoinBalance">200</b> ◉</div>
+      <div class="heart-wallet feature-heart-shop" aria-hidden="true">Клубные монеты: <b id="heartCoinBalance">200</b> ◉</div>
     </article>
   </dialog>
 
@@ -712,7 +636,7 @@
   <dialog class="fortune-dialog hidden" id="fortuneWheelDialog" aria-labelledby="fortuneWheelTitle">
     <article class="fortune-card">
       <button class="hearts-close" id="closeFortuneWheel" type="button" aria-label="Закрыть">×</button>
-      <span class="eyebrow">Тестовый режим · без таймера</span>
+      <span class="eyebrow">Бонус клуба · раз в 12 часов</span>
       <h2 id="fortuneWheelTitle">Колесо фортуны</h2>
       <p>Выигрыш сразу восстановит выпавшее количество сердечек.</p>
       <div class="fortune-stage" id="fortuneStage">
@@ -728,7 +652,7 @@
     </article>
   </dialog>
 
-  <dialog class="heart-subdialog hidden" id="heartShopDialog" aria-labelledby="heartShopTitle">
+  <dialog class="heart-subdialog hidden feature-heart-shop" id="heartShopDialog" aria-labelledby="heartShopTitle" aria-hidden="true">
     <article>
       <button class="hearts-close" id="closeHeartShop" type="button" aria-label="Закрыть">×</button>
       <span class="eyebrow">Клубная лавка</span>

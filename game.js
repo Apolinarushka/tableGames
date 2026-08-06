@@ -3,8 +3,7 @@ const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 const HEART_MAX = 10;
 const HEART_FIRST_RESTORE_MS = 10 * 60 * 1000;
 const HEART_NEXT_RESTORE_MS = 15 * 60 * 1000;
-// Временно отключено, чтобы колесо можно было тестировать без ожидания.
-const FORTUNE_TIMER_DISABLED = true;
+const FORTUNE_TIMER_DISABLED = false;
 
 const storedProfileText = localStorage.getItem("quietMoveProfile");
 let storedProfile = null;
@@ -408,88 +407,6 @@ const seededTournament = {
 };
 let tournament = JSON.parse(localStorage.getItem("quietMoveTournament") || "null") || seededTournament;
 
-function profileAge() {
-  if(!profile.birthDate)return null;
-  const born=new Date(`${profile.birthDate}T12:00:00`);
-  if(Number.isNaN(born.getTime()))return null;
-  const today=new Date();
-  let age=today.getFullYear()-born.getFullYear();
-  if(today.getMonth()<born.getMonth()||(today.getMonth()===born.getMonth()&&today.getDate()<born.getDate()))age--;
-  return Math.max(0,age);
-}
-function isActivityHour(hour,from=profile.activityFrom,to=profile.activityTo) {
-  const start=Number(from?.split(":")[0]||0),end=Number(to?.split(":")[0]||0);
-  return start<=end ? hour>=start&&hour<=end : hour>=start||hour<=end;
-}
-function activityHoursMarkup(from=profile.activityFrom,to=profile.activityTo) {
-  return Array.from({length:24},(_,hour)=>`<i class="${isActivityHour(hour,from,to)?"active":""}" title="${String(hour).padStart(2,"0")}:00"></i>`).join("");
-}
-function localTimeForProfile() {
-  try{return new Intl.DateTimeFormat("ru-RU",{timeZone:profile.timezone,hour:"2-digit",minute:"2-digit"}).format(new Date())}
-  catch{return new Intl.DateTimeFormat("ru-RU",{hour:"2-digit",minute:"2-digit"}).format(new Date())}
-}
-function formattedBirthDate() {
-  if(!profile.birthDate)return "Не указана";
-  const date=new Date(`${profile.birthDate}T12:00:00`);
-  return Number.isNaN(date.getTime())?"Не указана":new Intl.DateTimeFormat("ru-RU",{day:"numeric",month:"long",year:"numeric"}).format(date);
-}
-function renderActivityPreview() {
-  const preview=$("#activityHoursPreview");
-  if(!preview)return;
-  preview.innerHTML=activityHoursMarkup($("#activityFromInput").value,$("#activityToInput").value);
-}
-function renderPlayerProfile() {
-  const card=$("#playerProfileCard");
-  if(!card)return;
-  const age=profileAge();
-  const interests=profile.interests.length
-    ? profile.interests.map(item=>`<span>${escapeHtml(item)}</span>`).join("")
-    : "<span>Интересы не указаны</span>";
-  const photo=profile.photo
-    ? `<img src="${profile.photo}" alt="Фотография ${escapeHtml(profile.name)}">`
-    : escapeHtml(profile.name[0]?.toUpperCase()||"Г");
-  card.innerHTML=`
-    <div class="player-profile-cover"></div>
-    <div class="player-profile-main">
-      <div class="player-profile-photo">${photo}</div>
-      <h3>${escapeHtml(profile.name)}</h3>
-      <p class="player-profile-location">${escapeHtml(profile.city||"Город не указан")}</p>
-      <div class="player-profile-meta">
-        <span>Возраст<b>${age===null?"Не указан":`${age} ${age%10===1&&age%100!==11?"год":age%10>=2&&age%10<=4&&!(age%100>=12&&age%100<=14)?"года":"лет"}`}</b></span>
-        <span>Дата рождения<b>${escapeHtml(formattedBirthDate())}</b></span>
-        <span>Местное время<b>${escapeHtml(localTimeForProfile())}</b></span>
-        <span>Часовой пояс<b>${escapeHtml(profile.timezone)}</b></span>
-        <span>Авторизация<b>${escapeHtml(profile.authProvider||"Локальный профиль")}</b></span>
-      </div>
-      <div class="player-interests">${interests}</div>
-      <div class="profile-activity-title"><span>Активность</span><b>${escapeHtml(profile.activityFrom)}–${escapeHtml(profile.activityTo)}</b></div>
-      <div class="activity-hours">${activityHoursMarkup()}</div>
-      <div class="activity-scale"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
-    </div>`;
-}
-function syncProfileEditor() {
-  $("#cityInput").value=profile.city;
-  $("#birthDateInput").value=profile.birthDate;
-  $("#birthDateInput").max=new Date().toISOString().slice(0,10);
-  $("#interestsInput").value=profile.interests.join(", ");
-  const timezone=$("#timezoneInput");
-  if(![...timezone.options].some(option=>option.value===profile.timezone)){
-    timezone.add(new Option(profile.timezone,profile.timezone));
-  }
-  timezone.value=profile.timezone;
-  $("#activityFromInput").value=profile.activityFrom;
-  $("#activityToInput").value=profile.activityTo;
-  const preview=$("#profilePhotoPreview"),remove=$("#removeProfilePhoto");
-  preview.classList.toggle("hidden",!profile.photo);
-  remove.classList.toggle("hidden",!profile.photo);
-  if(profile.photo)preview.src=profile.photo;else preview.removeAttribute("src");
-  $("#socialAuthStatus").textContent=profile.authProvider
-    ? `Профиль связан с ${profile.authProvider}`
-    :"Вы играете как локальный гость";
-  $$("[data-social-provider]").forEach(button=>button.classList.toggle("connected",button.dataset.socialProvider===profile.authProvider));
-  $$(".interest-suggestions button").forEach(button=>button.classList.toggle("selected",profile.interests.includes(button.dataset.interest)));
-  renderActivityPreview();
-}
 function persistProfileToServer() {
   return fetch("/api/profile", {
     method: "PUT",
@@ -582,22 +499,28 @@ async function hydrateProfileSession() {
       localStorage.setItem("quietMoveProfile", JSON.stringify(profile));
     } else if (vkState?.authenticated) {
       applyVKUserProfile(vkState, true);
+      profileCompleted = true;
+      localStorage.setItem("quietMoveWelcomed", "1");
       localStorage.setItem("quietMoveProfile", JSON.stringify(profile));
       await persistProfileToServer();
     } else if (vkState?.mock) {
       applyVKUserProfile(vkState, false);
+      profileCompleted = true;
+      localStorage.setItem("quietMoveWelcomed", "1");
+      localStorage.setItem("quietMoveProfile", JSON.stringify(profile));
+      await persistProfileToServer();
     } else if (profileCompleted) {
+      await persistProfileToServer();
+    } else {
+      profileCompleted = true;
+      localStorage.setItem("quietMoveWelcomed", "1");
+      localStorage.setItem("quietMoveProfile", JSON.stringify(profile));
       await persistProfileToServer();
     }
   } catch (error) {
     console.warn("Не удалось восстановить анкету с сервера:", error.message);
   }
   applyProfile();
-  if (!profileCompleted) {
-    window.setTimeout(() => {
-      if (!$("#customizer").open) $("#customizer").showModal();
-    }, 350);
-  }
   return profile;
 }
 let heartTicker = null;
@@ -743,7 +666,7 @@ window.handleFortuneResult=data=>{
     result.classList.remove("hidden");
     $("#fortuneStatus").textContent=data.nextSpinAt
       ?"Награда сохранена. Возвращайтесь через 12 часов."
-      :"Тестовый режим: колесо снова доступно.";
+      :"Награда сохранена.";
     updateHeartsUI();updateFortuneUI();
   },3200);
 };
@@ -1173,12 +1096,11 @@ function applyProfile() {
   $("#gameAvatar").style.backgroundImage=profile.photo?`url("${profile.photo}")`:"";
   $("#gameAvatar").style.backgroundSize=profile.photo?"cover":"";
   $("#gameAvatar").style.backgroundPosition=profile.photo?"center":"";
-  $("#nameInput").value = profile.name;
   const miniAvatar=$("#miniAvatar");
   miniAvatar.style.backgroundImage=profile.photo?`url("${profile.photo}")`:"";
   miniAvatar.classList.toggle("has-photo",Boolean(profile.photo));
-  syncProfileEditor();
-  renderPlayerProfile();
+  const authStatus=$("#profileAuthStatus");
+  if(authStatus)authStatus.textContent=profile.authProvider?.startsWith("VK")?"Вход через VK":"Гостевой вход";
   const playerTier=calculatePlayerTier();
   const levelLabel=$("#playerLevel");
   levelLabel.textContent=playerTier?`Уровень ${tierLabels[playerTier]}`:`До уровня: ${Math.max(0,10-profile.games.length)} партий`;
@@ -1337,7 +1259,7 @@ document.addEventListener("keydown", e => {
   if (e.key === "F3") {
     if (!$("#wallBulletin")) return;
     e.preventDefault();
-    if ($("#gameDialog").open || $("#gameMenuDialog")?.open || $("#arcadeDialog")?.open || $("#customizer").open || seatingInProgress) return;
+    if ($("#gameDialog").open || $("#gameMenuDialog")?.open || $("#arcadeDialog")?.open || seatingInProgress) return;
     if ($("#bulletinDialog").open) $("#bulletinDialog").close();
     else openBulletin();
   }
@@ -1508,6 +1430,29 @@ function cancelRoomSeatAttempt(){
 window.cancelRoomSeatAttempt=cancelRoomSeatAttempt;
 window.addEventListener("resize",keepRoomPlayerInView,{passive:true});
 
+const fullscreenButton=$("#fullscreenButton");
+function updateFullscreenButton(){
+  if(!fullscreenButton)return;
+  const active=Boolean(document.fullscreenElement);
+  fullscreenButton.setAttribute("aria-pressed",String(active));
+  fullscreenButton.setAttribute("aria-label",active?"Свернуть игру из полноэкранного режима":"Развернуть игру на весь экран");
+  const icon=fullscreenButton.querySelector("span"),label=fullscreenButton.querySelector("b");
+  if(icon)icon.textContent=active?"🗗":"⛶";
+  if(label)label.textContent=active?"Свернуть":"Во весь экран";
+}
+fullscreenButton?.addEventListener("click",async()=>{
+  try{
+    if(document.fullscreenElement)await document.exitFullscreen();
+    else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();
+    else toast("Полноэкранный режим недоступен в этом браузере.");
+  }catch{
+    toast("Браузер не разрешил открыть полноэкранный режим.");
+  }
+  updateFullscreenButton();
+});
+document.addEventListener("fullscreenchange",updateFullscreenButton);
+updateFullscreenButton();
+
 const clubSidebar=$("#clubSidebar"),sidebarCollapse=$("#sidebarCollapse");
 function setSidebarCollapsed(collapsed,persist=true){
   clubSidebar.classList.toggle("collapsed",collapsed);
@@ -1517,8 +1462,7 @@ function setSidebarCollapsed(collapsed,persist=true){
   sidebarCollapse.querySelector("span").textContent=collapsed?"+":"−";
   if(persist)localStorage.setItem("quietMoveSidebarCollapsed",collapsed?"1":"0");
 }
-const mobileClubLayout=window.matchMedia("(max-width: 700px)").matches;
-setSidebarCollapsed(mobileClubLayout||localStorage.getItem("quietMoveSidebarCollapsed")==="1",false);
+setSidebarCollapsed(true,false);
 sidebarCollapse.addEventListener("click",()=>setSidebarCollapsed(!clubSidebar.classList.contains("collapsed")));
 const clubChatPanel=$("#clubChatPanel"),chatCollapse=$("#chatCollapse");
 function setChatCollapsed(collapsed,persist=true){
@@ -1529,81 +1473,15 @@ function setChatCollapsed(collapsed,persist=true){
   chatCollapse.querySelector("span").textContent=collapsed?"+":"−";
   if(persist)localStorage.setItem("yourTurnChatCollapsed",collapsed?"1":"0");
 }
-setChatCollapsed(mobileClubLayout||localStorage.getItem("yourTurnChatCollapsed")==="1",false);
+setChatCollapsed(true,false);
 chatCollapse.addEventListener("click",()=>setChatCollapsed(!clubChatPanel.classList.contains("collapsed")));
+window.openClubChat=()=>setChatCollapsed(false,false);
 $$(".sidebar-tabs button[data-panel]").forEach(b => b.addEventListener("click", () => {
   $$(".sidebar-tabs button[data-panel]").forEach(x => x.classList.toggle("active", x === b));
-  const panels={rooms:"#roomsPanel",history:"#historyPanel",characters:"#charactersPanel",playerProfile:"#playerProfilePanel"};
-  Object.entries(panels).forEach(([name,selector])=>$(selector).classList.toggle("hidden",b.dataset.panel!==name));
+  const panels={rooms:"#roomsPanel",history:"#historyPanel",characters:"#charactersPanel"};
+  Object.entries(panels).forEach(([name,selector])=>$(selector)?.classList.toggle("hidden",b.dataset.panel!==name));
   if(clubSidebar.classList.contains("collapsed"))setSidebarCollapsed(false);
 }));
-$("#customizeButton").addEventListener("click", () => $("#customizer").showModal());
-$("#editPlayerProfile").addEventListener("click", () => $("#customizer").showModal());
-function resizeProfilePhoto(file,maxSize=512) {
-  return new Promise((resolve,reject)=>{
-    if(!file.type.startsWith("image/")){reject(new Error("Выберите изображение"));return}
-    if(file.size>8*1024*1024){reject(new Error("Файл должен быть меньше 8 МБ"));return}
-    const reader=new FileReader();
-    reader.onerror=()=>reject(new Error("Не удалось прочитать фотографию"));
-    reader.onload=()=>{
-      const image=new Image();
-      image.onerror=()=>reject(new Error("Не удалось открыть фотографию"));
-      image.onload=()=>{
-        const side=Math.min(image.naturalWidth,image.naturalHeight);
-        const sx=(image.naturalWidth-side)/2,sy=(image.naturalHeight-side)/2;
-        const canvas=document.createElement("canvas");canvas.width=maxSize;canvas.height=maxSize;
-        canvas.getContext("2d").drawImage(image,sx,sy,side,side,0,0,maxSize,maxSize);
-        resolve(canvas.toDataURL("image/jpeg",.84));
-      };
-      image.src=reader.result;
-    };
-    reader.readAsDataURL(file);
-  });
-}
-$("#profilePhotoInput").addEventListener("change",async event=>{
-  const file=event.target.files?.[0];if(!file)return;
-  try{
-    profile.photo=await resizeProfilePhoto(file);
-    saveProfile();applyProfile();toast("Фотография добавлена в анкету");
-  }catch(error){toast(error.message)}
-  event.target.value="";
-});
-$("#removeProfilePhoto").addEventListener("click",()=>{
-  profile.photo="";saveProfile();applyProfile();toast("Фотография удалена");
-});
-$$("[data-social-provider]").forEach(button=>button.addEventListener("click",()=>{
-  if(button.dataset.socialProvider==="VK"&&!window.vkPlatform?.isVK){
-    toast("Для входа через VK откройте игру из приложения ВКонтакте");
-    return;
-  }
-  profile.authProvider=button.dataset.socialProvider;
-  saveProfile();applyProfile();
-  toast(`Профиль связан с ${profile.authProvider} на этом устройстве`);
-}));
-$$(".interest-suggestions button").forEach(button=>button.addEventListener("click",()=>{
-  const items=$("#interestsInput").value.split(",").map(item=>item.trim()).filter(Boolean);
-  const interest=button.dataset.interest,index=items.findIndex(item=>item.toLowerCase()===interest.toLowerCase());
-  if(index>=0)items.splice(index,1);else items.push(interest);
-  $("#interestsInput").value=items.slice(0,10).join(", ");
-  button.classList.toggle("selected",index<0);
-}));
-$("#activityFromInput").addEventListener("input",renderActivityPreview);
-$("#activityToInput").addEventListener("input",renderActivityPreview);
-$("#customizer").addEventListener("close", () => applyProfile());
-$("#saveAvatar").addEventListener("click", async e => {
-  e.preventDefault();
-  profile.name = $("#nameInput").value.trim() || "Гость";
-  profile.city = $("#cityInput").value.trim();
-  profile.birthDate = $("#birthDateInput").value;
-  profile.timezone = $("#timezoneInput").value;
-  profile.activityFrom = $("#activityFromInput").value || "18:00";
-  profile.activityTo = $("#activityToInput").value || "23:00";
-  profile.interests = [...new Set($("#interestsInput").value.split(",").map(item=>item.trim()).filter(Boolean))].slice(0,10);
-  profileCompleted = true;
-  localStorage.setItem("quietMoveWelcomed", "1");
-  await saveProfile();
-  applyProfile(); $("#customizer").close(); toast(`Анкета ${profile.name} сохранена`);
-});
 
 function appendCharacterMessage(box, character, text) {
   if(!box||!character||!text)return;
@@ -3084,5 +2962,4 @@ $("#historyForward").addEventListener("click",()=>stepCheckersHistory(1));
 $("#soundButton").addEventListener("click",()=>{soundOn=!soundOn;$("#soundButton").textContent=`Звук: ${soundOn?"вкл.":"выкл."}`;if(soundOn)beep(400)});
 
 applyProfile(); startHeartTicker(); detectTable();
-window.setInterval(renderPlayerProfile,60000);
 window.profileSessionReady = hydrateProfileSession();

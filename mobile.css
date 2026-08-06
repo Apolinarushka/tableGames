@@ -1,7 +1,15 @@
 /* Mobile layout for the club and every game table. */
 @media (max-width: 700px) {
   :root { --mobile-gutter: 8px; }
-  html, body { width: 100%; height: 100%; overscroll-behavior: none; }
+  html, body, #app {
+    width: 100%;
+    height: 100%;
+    background-color: #d8b98f;
+    background-image:
+      linear-gradient(90deg, rgb(255 255 255 / 10%), transparent 18%, rgb(124 83 47 / 7%) 54%, transparent 78%),
+      repeating-linear-gradient(2deg, rgb(116 77 43 / 7%) 0 1px, transparent 1px 9px);
+    overscroll-behavior: none;
+  }
 
   .topbar {
     height: 60px;
@@ -13,7 +21,8 @@
   .brand strong { font-size: 15px; white-space: nowrap; }
   .brand small { font-size: 7px; letter-spacing: .1em; }
   .topbar-computer-button,
-  .topbar-rules-button {
+  .topbar-rules-button,
+  .topbar-fullscreen-button {
     min-height: 40px;
     padding: 6px 8px;
     font-size: 0;
@@ -21,6 +30,9 @@
   }
   .topbar-computer-button::after { content: "Против ПК"; font-size: 10px; }
   .topbar-rules-button::after { content: "Правила"; font-size: 10px; }
+  .topbar-fullscreen-button { min-width: 40px; justify-content: center; }
+  .topbar-fullscreen-button > b { display: none; }
+  .topbar-fullscreen-button > span { font-size: 18px; }
   .heart-bank-button {
     min-width: 44px;
     min-height: 40px;
@@ -33,7 +45,7 @@
   .profile { gap: 0; }
   .profile-progress { display: none; }
   .avatar-button { min-width: 40px; min-height: 40px; padding: 5px; justify-content: center; }
-  .avatar-button #profileName { display: none; }
+  .avatar-button #profileName, .profile-identity-copy { display: none; }
   .mini-avatar { width: 30px; height: 30px; }
 
   .club.new-room {
@@ -41,6 +53,10 @@
     --mobile-room-unit: var(--room-unit);
     height: 100dvh;
     padding-top: 0;
+    background-color: #d8b98f;
+    background-image:
+      linear-gradient(90deg, rgb(255 255 255 / 10%), transparent 18%, rgb(124 83 47 / 7%) 54%, transparent 78%),
+      repeating-linear-gradient(2deg, rgb(116 77 43 / 7%) 0 1px, transparent 1px 9px);
     touch-action: pan-x;
     scrollbar-width: none;
   }

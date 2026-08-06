@@ -17,11 +17,13 @@ const supportedGames = new Set(["checkers", "giveaway", "corners", "chess", "dom
 const supportedLevels = new Set(["A1", "A2", "B1", "B2", "V1", "V2"]);
 const searchRequestTtlMs = 30_000;
 const roomPresence = new Map();
+const chatModeration = new Map();
+const chatBlockDurationMs = 15 * 60 * 1000;
+const chatViolationResetMs = 24 * 60 * 60 * 1000;
 const heartMax = 10;
 const heartFirstRestoreMs = 10 * 60 * 1000;
 const heartNextRestoreMs = 15 * 60 * 1000;
-// Временно отключено для тестирования колеса. Вернуть: 12 * 60 * 60 * 1000.
-const fortuneCooldownMs = 0;
+const fortuneCooldownMs = 12 * 60 * 60 * 1000;
 
 function tableX(tableNumber) {
   const panel = Math.floor((Number(tableNumber) - 1) / 3);
@@ -35,6 +37,91 @@ function guestSpawnX(guestSlot) {
 
 function safeText(value, maxLength) {
   return String(value || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, maxLength);
+}
+
+function containsAbusiveLanguage(value) {
+  const words = String(value || "")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/0/g, "о")
+    .replace(/3/g, "з")
+    .replace(/[^a-zа-я]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const exact = new Set([
+    "дурак", "дура", "идиот", "дебил", "тупой", "тупая", "тупица", "урод", "уродина",
+    "козел", "мразь", "сволочь", "чмо", "лох", "мудак", "тварь", "шлюха", "падла",
+    "гад", "заткнись"
+  ]);
+  const stems = [
+    "дурац", "идиот", "дебил", "тупиц", "урод", "мраз", "сволоч", "говн", "сука", "бля",
+    "хуй", "хуе", "хуя", "пизд", "ебан", "ебат", "ебуч", "уеб", "долбоеб", "пидор", "пидар",
+    "мудак", "шлюх", "падл"
+  ];
+  return words.some(word => exact.has(word) || stems.some(stem => word.startsWith(stem)));
+}
+
+function moderationState(sessionId) {
+  const now = Date.now();
+  const current = chatModeration.get(sessionId);
+  if (!current) return {violations: 0, blockedUntil: 0, lastViolationAt: 0};
+  if (current.blockedUntil && current.blockedUntil <= now) {
+    chatModeration.delete(sessionId);
+    return {violations: 0, blockedUntil: 0, lastViolationAt: 0};
+  }
+  if (!current.blockedUntil && now - current.lastViolationAt > chatViolationResetMs) {
+    chatModeration.delete(sessionId);
+    return {violations: 0, blockedUntil: 0, lastViolationAt: 0};
+  }
+  return current;
+}
+
+function sendModerationMessage(socket, action, message, blockedUntil = 0, warning = 0, context = {}) {
+  if (socket.readyState !== WebSocket.OPEN) return;
+  const channel = context.channel === "table" ? "table" : "global";
+  const tableNumber = channel === "table" && Number.isFinite(Number(context.tableNumber))
+    ? Number(context.tableNumber)
+    : null;
+  socket.send(JSON.stringify({
+    type: "chat_moderation",
+    action,
+    message,
+    warning,
+    blockedUntil: blockedUntil ? new Date(blockedUntil).toISOString() : null,
+    channel,
+    tableNumber
+  }));
+}
+
+function chatMessageAllowed(socket, message, context = {}) {
+  const state = moderationState(socket.sessionId);
+  const now = Date.now();
+  if (state.blockedUntil > now) {
+    const minutes = Math.max(1, Math.ceil((state.blockedUntil - now) / 60000));
+    sendModerationMessage(socket, "blocked", `Чат заблокирован. Осталось примерно ${minutes} мин.`, state.blockedUntil, 3, context);
+    return false;
+  }
+  if (!containsAbusiveLanguage(message)) return true;
+  const violations = state.violations + 1;
+  if (violations >= 3) {
+    const blockedUntil = now + chatBlockDurationMs;
+    chatModeration.set(socket.sessionId, {violations: 3, blockedUntil, lastViolationAt: now});
+    sendModerationMessage(socket, "blocked", "Третье нарушение: чат заблокирован на 15 минут.", blockedUntil, 3, context);
+    return false;
+  }
+  chatModeration.set(socket.sessionId, {violations, blockedUntil: 0, lastViolationAt: now});
+  sendModerationMessage(
+    socket,
+    "warning",
+    violations === 1
+      ? "Пожалуйста, общайтесь уважительно. Это первое предупреждение."
+      : "Оскорбления запрещены. Это второе предупреждение; следующее нарушение заблокирует чат на 15 минут.",
+    0,
+    violations,
+    context
+  );
+  return false;
 }
 
 function safeSessionId(value) {
@@ -515,6 +602,11 @@ async function registerPlayer(socket, data) {
     nickname: socket.nickname,
     guestSlot
   }));
+  const chatState = moderationState(socket.sessionId);
+  if (chatState.blockedUntil > Date.now()) {
+    const minutes = Math.max(1, Math.ceil((chatState.blockedUntil - Date.now()) / 60000));
+    sendModerationMessage(socket, "blocked", `Чат заблокирован. Осталось примерно ${minutes} мин.`, chatState.blockedUntil, 3);
+  }
   await broadcastSnapshot();
 }
 
@@ -919,6 +1011,7 @@ async function addChat(socket, data) {
     `, [tableNumber, socket.sessionId]);
     if (!membership.rows.length) return;
   }
+  if (!chatMessageAllowed(socket, message, {channel, tableNumber})) return;
   await pool.query(
     "INSERT INTO club_chat(session_id, nickname, message, channel, table_number) VALUES ($1, $2, $3, $4, $5)",
     [socket.sessionId, socket.nickname, message, channel, tableNumber]
